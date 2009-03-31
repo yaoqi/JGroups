@@ -1,4 +1,4 @@
-// $Id: MERGE2.java,v 1.42.2.5 2009/02/02 16:26:25 belaban Exp $
+// $Id: MERGE2.java,v 1.42.2.5.2.1 2009/03/31 14:51:54 belaban Exp $
 
 package org.jgroups.protocols;
 
@@ -49,7 +49,8 @@ public class MERGE2 extends Protocol {
     private long					min_interval=5000;     // minimum time between executions of the FindSubgroups task
     private long					max_interval=20000;    // maximum time between executions of the FindSubgroups task
     private volatile boolean		is_coord=false;  
-    private volatile boolean		use_separate_thread=false; // Use a new thread to send the MERGE event up the stack    
+    private volatile boolean		use_separate_thread=false; // Use a new thread to send the MERGE event up the stack
+    private volatile boolean        suspended=false; // no MERGE event is sent up while suspended
     private TimeScheduler			timer;
     
     public void init() throws Exception {
@@ -78,6 +79,8 @@ public class MERGE2 extends Protocol {
     public void setMaxInterval(long l) {
         max_interval=l;
     }
+
+    public boolean getSuspended() {return suspended;}
 
 
     public boolean setProperties(Properties props) {
@@ -129,6 +132,7 @@ public class MERGE2 extends Protocol {
     public void stop() {
         is_coord=false;
         task.stop();
+        suspended=false;
     }
 
 
@@ -176,6 +180,21 @@ public class MERGE2 extends Protocol {
         }
     }   
 
+    /** Suspends the sending of merge multicasts (only if coord) */
+    public void suspendMergeTask() {
+        suspended=true;
+    }
+
+    /** Resumes the sending of merge multicast (only if coord) */ 
+    public void resumeMergeTask() {
+        suspended=false;
+    }
+
+    /** Discovers members and detects whether we have multiple coordinator. If so, kicks off a merge */
+    public void sendMergeSolicitation() {
+        task.findAndNotify();
+    }
+
 
     /**
 	 * Task periodically executing (if role is coordinator). Gets the initial membership and determines
@@ -204,6 +223,12 @@ public class MERGE2 extends Protocol {
         }
 
         public void findAndNotify() {
+            if(suspended) {
+                if(log.isTraceEnabled())
+                    log.trace("merge task is suspended, won't send MERGE event up");
+                return;
+            }
+
             List<PingRsp> initial_mbrs=findInitialMembers();
             
             Vector<Address> coords=detectMultipleCoordinators(initial_mbrs);

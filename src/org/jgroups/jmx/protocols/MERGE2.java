@@ -4,7 +4,7 @@ import org.jgroups.jmx.Protocol;
 
 /**
  * @author Bela Ban
- * @version $Id: MERGE2.java,v 1.1 2005/06/13 11:55:31 belaban Exp $
+ * @version $Id: MERGE2.java,v 1.1.16.1 2009/03/31 14:51:53 belaban Exp $
  */
 public class MERGE2 extends Protocol implements MERGE2MBean {
     org.jgroups.protocols.MERGE2 p;
@@ -37,4 +37,22 @@ public class MERGE2 extends Protocol implements MERGE2MBean {
     public void setMaxInterval(long l) {
         p.setMaxInterval(l);
     }
+
+    public boolean getSuspended() {
+        return p.getSuspended();
+    }
+
+    public void suspendMergeTask() {
+        p.suspendMergeTask();
+    }
+
+    public void resumeMergeTask() {
+        p.resumeMergeTask();
+    }
+
+    public void sendMergeSolicitation() {
+        p.sendMergeSolicitation();
+    }
+
+
 }
