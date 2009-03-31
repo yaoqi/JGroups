@@ -1,23 +1,22 @@
 package org.jgroups.tests;
 
 import org.jgroups.*;
-import org.jgroups.protocols.*;
-import org.jgroups.stack.Protocol;
+import org.jgroups.protocols.FD;
+import org.jgroups.protocols.FD_ALL;
+import org.jgroups.protocols.MERGE2;
+import org.jgroups.protocols.pbcast.GMS;
 import org.jgroups.stack.ProtocolStack;
 import org.jgroups.util.Util;
 
-import java.util.Properties;
-import java.util.Vector;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
+import java.util.Vector;
 
 /**
  * Tests overlapping merges, e.g. A: {A,B}, B: {A,B} and C: {A,B,C}. Tests unicast as well as multicast seqno tables.<br/>
  * Related JIRA: https://jira.jboss.org/jira/browse/JGRP-940
  * @author Bela Ban
- * @version $Id: OverlappingMergeTest.java,v 1.1.2.1 2009/03/31 15:27:45 belaban Exp $
+ * @version $Id: OverlappingMergeTest.java,v 1.1.2.2 2009/03/31 16:34:14 belaban Exp $
  */
 public class OverlappingMergeTest extends ChannelTestBase {
     private JChannel a, b, c;
@@ -25,7 +24,7 @@ public class OverlappingMergeTest extends ChannelTestBase {
 
     protected void setUp() throws Exception {
         super.setUp();
-        ra=new MyReceiver(); rb=new MyReceiver(); rc=new MyReceiver();
+        ra=new MyReceiver("A"); rb=new MyReceiver("B"); rc=new MyReceiver("C");
     }
 
     protected void tearDown() throws Exception {
@@ -38,19 +37,17 @@ public class OverlappingMergeTest extends ChannelTestBase {
      * are executed:
      * <ol>
      * <li/>Group is {A,B,C}, disable shunning in all members. A is the coordinator
-     * <li/>MERGE2 in all members is suspended: MERGE2.suspendMergeTask()
-     * <li/>DISCARD is added to all members, just above the transport
+     * <li/>MERGE2 is removed from all members
      * <li/>VERIFY_SUSPECT is removed from all members
      * <li/>Everyone sends 5 unicast messages to everyone else
      * <li/>Everyone sends 5 multicasts
-     * <li/>Set C's DISCARD protocol to discard all messages from A
-     * <li/>This causes C to multicast a SUSPECT(A) message
-     * <li/>A ignores it, but B decides to become the new coord
-     * <li/>B mcasts view {B,C}
+     * <li/>A SUSPECT(A) event is injected into B's stack (GMS). This causes a new view {B,C} to be multicast by B
      * <li/>B and C install {B,C}
      * <li/>B and C trash the connection table for A in UNICAST
-     * <li/>A ignores the view, it has still view {A,B,C}
-     * <li/>MERGE2 resumes, and causes A and B as coords to create a new MergeView {A,B,C}
+     * <li/>A ignores the view, it still has view {A,B,C} and all connection tables intact in UNICAST
+     * <li/>We now inject a MERGE(A,B) event into A. This should ause A and B as coords to create a new MergeView {A,B,C}
+     * <li/>The merge already fails because the unicast between A and B fails due to the reason given below !
+     *      Once this is fixed, the next step below should work, too !
      * <li/>A sends a unicast to B and C. This should fail until JGRP-940 has been fixed !
      * <li/>Reason: B and C trashed A's conntables in UNICAST, but A didn't trash its conn tables for B and C, so
      * we have non-matching seqnos !
@@ -73,6 +70,55 @@ public class OverlappingMergeTest extends ChannelTestBase {
 
         Util.sleep(1000); // sleep a little to make sure async msgs have been received
         checkReceivedMessages(15, 15, ra, rb, rc);
+
+        // send a SUSPECT(A) event up B's stack, B will become coord and install {B,C} in itself and C
+        injectSuspectEvent(b, a.getLocalAddress());
+        Util.sleep(1000);
+        System.out.println("A's view: " + a.getView());
+        System.out.println("B's view: " + b.getView());
+        System.out.println("C's view: " + c.getView());
+        assert a.getView().size() == 3 : "A's view is " + a.getView();
+        assert b.getView().size() == 2 : "B's view is " + b.getView();
+        assert c.getView().size() == 2 : "C's view is " + c.getView();
+
+        // resume merging
+        System.out.println("Merging started");
+        Vector<Address> coords=new Vector<Address>(2);
+        coords.add(a.getLocalAddress()); coords.add(b.getLocalAddress());
+        Event merge_evt=new Event(Event.MERGE, coords);
+        injectMergeEvent(merge_evt, a);
+
+        for(int i=0; i < 10; i++) {
+            if(a.getView().size() == 3 && b.getView().size() == 3 && c.getView().size() == 3)
+                break;
+            Util.sleep(1000);
+        }
+        System.out.println("checking views after merge:");
+
+        System.out.println("A's view: " + a.getView());
+        System.out.println("B's view: " + b.getView());
+        System.out.println("C's view: " + c.getView());
+        assert a.getView().size() == 3 : "A's view is " + a.getView();
+        assert b.getView().size() == 3 : "B's view is " + b.getView();
+        assert c.getView().size() == 3 : "C's view is " + c.getView();
+
+        ra.clear(); rb.clear(); rc.clear();
+        System.out.println("Sending messages after merge");
+        sendMessages(a, b, c);
+        Util.sleep(1000); // sleep a little to make sure async msgs have been received
+        checkReceivedMessages(15, 15, ra, rb, rc);
+    }
+
+    private static void injectSuspectEvent(JChannel ch, Address suspected_mbr) {
+        GMS gms=(GMS)ch.getProtocolStack().findProtocol(GMS.class);
+        gms.up(new Event(Event.SUSPECT, suspected_mbr));
+    }
+
+    private static void injectMergeEvent(Event evt, JChannel ... channels) {
+        for(JChannel ch: channels) {
+            GMS gms=(GMS)ch.getProtocolStack().findProtocol(GMS.class);
+            gms.up(evt);
+        }
     }
 
 
@@ -113,33 +159,29 @@ public class OverlappingMergeTest extends ChannelTestBase {
             ProtocolStack stack=ch.getProtocolStack();
 
             FD fd=(FD)stack.findProtocol(FD.class);
-            if(fd != null) {
+            if(fd != null)
                 fd.setShun(false);
-            }
-            
-            FD_ALL fd_all=(FD_ALL)stack.findProtocol(FD_ALL.class);
-            if(fd_all != null) {
-                fd_all.setShun(false);
-            }
 
-            MERGE2 merge=(MERGE2)stack.findProtocol("MERGE2");
-            if(merge == null)
-                throw new IllegalStateException("MERGE2 is required");
-            merge.setMinInterval(5000);
-            merge.setMaxInterval(10000);
-            merge.suspendMergeTask();
-            
-            DISCARD discard=new DISCARD(); // insert DISCARD just above the transport
-            stack.insertProtocol(discard, ProtocolStack.ABOVE, stack.getTransport());
+            FD_ALL fd_all=(FD_ALL)stack.findProtocol(FD_ALL.class);
+            if(fd_all != null)
+                fd_all.setShun(false);
+
+            stack.removeProtocol("MERGE2");
 
             stack.removeProtocol("VERIFY_SUSPECT");
         }
     }
 
 
+
     private static class MyReceiver extends ReceiverAdapter {
+        final String name;
         final List<Message> mcasts=new ArrayList<Message>(20);
         final List<Message> ucasts=new ArrayList<Message>(20);
+
+        public MyReceiver(String name) {
+            this.name=name;
+        }
 
         public void receive(Message msg) {
             Address dest=msg.getDest();
@@ -151,10 +193,13 @@ public class OverlappingMergeTest extends ChannelTestBase {
             // System.out.println("received " + (mcast? "mcast" : "ucast") + " msg from " + msg.getSrc());
         }
 
+        public void viewAccepted(View new_view) {
+            System.out.println("[" + name + "] " + new_view);
+        }
+
         public List<Message> getMulticasts() { return mcasts; }
-
         public List<Message> getUnicasts() { return ucasts; }
-
+        public void clear() {mcasts.clear(); ucasts.clear();}
     }
 
 

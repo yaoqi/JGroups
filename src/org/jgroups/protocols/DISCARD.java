@@ -1,4 +1,4 @@
-// $Id: DISCARD.java,v 1.17.2.5 2009/03/31 12:28:52 belaban Exp $
+// $Id: DISCARD.java,v 1.17.2.3.2.1 2009/03/31 16:34:15 belaban Exp $
 
 package org.jgroups.protocols;
 
@@ -58,7 +58,7 @@ public class DISCARD extends Protocol {
     public void setLocalAddress(Address localAddress){
         this.localAddress =localAddress;
         if(discard_dialog != null)
-            discard_dialog.setTitle(localAddress != null? localAddress.toString() : "n/a");
+            discard_dialog.setTitle("Discard dialog (" + localAddress + ")");
     }
 
     public void setExcludeItself(boolean excludeItself) {
@@ -108,8 +108,13 @@ public class DISCARD extends Protocol {
 
     public void resetIgnoredMembers() {ignoredMembers.clear();}
 
+    public boolean isDiscardAll() {
+        return discard_all;
+    }
 
-
+    public void setDiscardAll(boolean discard_all) {
+        this.discard_all=discard_all;
+    }
 
     public boolean setProperties(Properties props) {
         String str;
@@ -170,7 +175,7 @@ public class DISCARD extends Protocol {
         if(evt.getType() == Event.SET_LOCAL_ADDRESS) {
             localAddress=(Address)evt.getArg();
             if(discard_dialog != null)
-                discard_dialog.setTitle(localAddress != null? localAddress.toString() : "n/a");
+                discard_dialog.setTitle("Discard dialog (" + localAddress + ")");
         }
 
         if(evt.getType() == Event.MSG) {
@@ -352,6 +357,7 @@ public class DISCARD extends Protocol {
     private class DiscardDialog extends JFrame implements ActionListener {
         private JButton start_discarding_button=new JButton("start discarding");
         private JButton stop_discarding_button=new JButton("stop discarding");
+        JPanel panel=new JPanel(new FlowLayout(FlowLayout.LEFT));
         JPanel checkboxes=new JPanel();
 
         
@@ -359,16 +365,43 @@ public class DISCARD extends Protocol {
         }
 
         void init() {
-            getContentPane().setLayout(new BoxLayout(getContentPane(), BoxLayout.Y_AXIS));
+            panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
             checkboxes.setLayout(new BoxLayout(checkboxes, BoxLayout.Y_AXIS));
-            getContentPane().add(start_discarding_button);
-            getContentPane().add(stop_discarding_button);
+            JPanel button_panel=new JPanel(new FlowLayout(FlowLayout.LEFT));
+            button_panel.add(start_discarding_button);
+            button_panel.add(stop_discarding_button);
+            panel.add(button_panel);
+
             start_discarding_button.addActionListener(this);
             stop_discarding_button.addActionListener(this);
-            getContentPane().add(checkboxes);
+
+
+            panel.add(checkboxes);
+
+//            final JCheckBox box=new MyCheckBox("discard messages from 192.168.1.5:5000", localAddress);
+//            box.addActionListener(new ActionListener() {
+//
+//                public void actionPerformed(ActionEvent e) {
+//                    System.out.println("action is " + e.getActionCommand() + ", selected=" + box.isSelected());
+//                    System.out.println("source=" + e.getSource());
+//                }
+//            });
+//            checkboxes.add(box);
+//
+//            for(int i=6000; i< 6100; i+=10)
+//                checkboxes.add(new JCheckBox("discard msgs from 192.168.1.5:" + i));
+//
+
+            setContentPane(panel);
             pack();
             setVisible(true);
-            setTitle(localAddress != null? localAddress.toString() : "n/a");
+            setTitle("Discard dialog (" + localAddress + ")");
+
+
+            Component[] comps=panel.getComponents();
+            for(Component c: comps) {
+                System.out.println("c = " + c);
+            }
         }
 
 
@@ -392,7 +425,6 @@ public class DISCARD extends Protocol {
             checkboxes.removeAll();
             for(final Address addr: mbrs) {
                 final MyCheckBox box=new MyCheckBox("discard traffic from " + addr, addr);
-                box.setAlignmentX(LEFT_ALIGNMENT);
                 box.addActionListener(new ActionListener() {
                     public void actionPerformed(ActionEvent e) {
                         if(box.isSelected()) {
@@ -421,10 +453,6 @@ public class DISCARD extends Protocol {
         public MyCheckBox(String name, Address member) {
             super(name);
             this.mbr=member;
-        }
-
-        public float getAlignmentX() {
-            return LEFT_ALIGNMENT;
         }
 
         public String toString() {
