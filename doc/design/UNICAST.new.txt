@@ -1,0 +1,28 @@
+
+New UNICAST
+===========
+
+Author: Bela Ban
+Version: $Id: UNICAST.new.txt,v 1.1.2.1 2009/04/01 07:19:06 belaban Exp $
+
+Motivation
+----------
+
+UNICAST has issues when one end of the connnection unilaterally closes the connection and discards the state in
+the connection table.
+
+Example: we have a conn between A and B. There's a partition such that A sees {A,B} and
+B sees only {B}. B will clear its connection table for A on reception of the view, whereas A will keep it.
+
+Now the partition heals and A and B can communicate again.
+
+Assuming A's next seqno to B is #25 (and #7 for receiving messages from B),
+B will store the message because it expects #1 from A (new connection).
+
+The reverse direction is even worse: B will send #1 to A, but A expects #7, so A will discard the message.
+
+
+
+
+Goals
+-----
