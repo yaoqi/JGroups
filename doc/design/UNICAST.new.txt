@@ -4,7 +4,7 @@ New UNICAST design
 (see UNICAST.txt for the old design)
 
 Author: Bela Ban
-Version: $Id: UNICAST.new.txt,v 1.1.2.4 2009/04/01 10:16:07 belaban Exp $
+Version: $Id: UNICAST.new.txt,v 1.1.2.5 2009/04/01 11:01:17 belaban Exp $
 
 Motivation
 ----------
@@ -91,23 +91,68 @@ A receives GET_FIRST_SEQNO from B:
 Scenarios
 ---------
 
-A creates new connection to B:
-
-B receives new connection:
-
-A and B close connection (e.g. based on a view change (partition))
-
-A closes the connection unilaterally (B keeps it open), then reopens it and sends a message
-
-B closes its connection unilaterally, then A sends a message to B
-
-Merge where A and B are in different partitions
-
-Merge where A and B are in overlapping partitions (A: {A}, B: {A,B} or A: {A,B}, B: {B})
+#1 A creates new connection to B:
+- The entry for B is null, a new entry is created and added to the connection table
+- Entry.send-conn-id is set and sent with the message
+- Entry.seqno now is 1
 
 
+#2 B receives new connection:
+- B creates a new entry and entry.recv_win (with msg.seqno) for A
+- B sets entry.recv-conn-id to msg.conn-id
+- B adds the message to entry.recv_win
 
 
+#3 A and B close connection (e.g. based on a view change (partition)):
+- Both A and B reset (cancelling pending retransmissions) and remove the entry for their peer from the connection table
+
+
+#4 A closes the connection unilaterally (B keeps it open), then reopens it and sends a message:
+- A removes the entry for B from its connection table, cancelling all pending retransmissions
+- (Assuming that B's entry.recv_win for A is at #25)
+- A creates a new entry for B in its connection table
+- Entry.send-conn-id is set and sent with the message
+- Entry.seqno now is 1
+- B receives the message with a new conn-id
+- B does have an entry for A, but entry.recv-conn-id doesn't match msg.conn-id
+- B creates a new entry.recv_win, sets it to msg.seqno
+- B sets entry.recv-conn-id to msg.conn-id
+
+
+#5 B closes its connection unilaterally, then A sends a message to B:
+- B doesn't find an entry for A in its connection table
+- B discards the message and sends a SEND-FIRST-SEQNO to A
+- A receives the SEND-FIRST-SEQNO message. It grabs the message with the lowest seqno
+  in its entry.send_win, adds a UnicastHeader with entry.send-conn-id and sends the
+  message to B
+- B receive the message and creates a new entry and entry.recv_win (with msg.seqno)
+- B sets entry.recv-conn-id to msg.conn-id
+
+
+#6 Merge where A and B are in different partitions:
+- Both A and B removes the entries for each other in their respective connection tables
+- When the partition heals, both A and B will create new entries (see scenario #2)
+
+
+#7 Merge where A and B are in overlapping partitions A: {A}, B: {A,B}:
+- (This case is currently handled by shunning, not merging)
+- A sends a message to B
+- A removed its entry for B, but B kept its entry for A
+- A new creates a new connection to B (scenario #1) and sends the message
+- B receives the message, but entry.recv-conn-id doesn't match msg.conn-id, so B
+  removes entry.recv_win, sets entry.recv-conn-id to msg.conn-id and creates a new
+  entry.recv_win with msg.seqno (same as second half of scenario #4)
+
+
+#8 Merge where A and B are in overlapping partitions A: {A,B}, B: {B}:
+- A sends a message to B (msg.seqno=25)
+- B doesn't have an entry for A
+- B discards the message and sends a SEND-FIRST-SEQNO to A
+- A receives the SEND-FIRST-SEQNO message. It grabs the message with the lowest seqno
+  in its entry.send_win, adds a UnicastHeader with entry.send-conn-id and sends the
+  message to B
+- B receive the message and creates a new entry and entry.recv_win (with msg.seqno)
+- B sets entry.recv-conn-id to msg.conn-id
 
 
 Issues
