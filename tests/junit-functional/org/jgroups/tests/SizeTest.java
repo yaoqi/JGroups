@@ -1,4 +1,4 @@
-// $Id: SizeTest.java,v 1.3.2.1 2008/08/15 18:31:05 rachmatowicz Exp $$
+// $Id: SizeTest.java,v 1.3.2.1.2.1 2009/04/01 15:39:48 belaban Exp $$
 
 package org.jgroups.tests;
 
@@ -136,6 +136,9 @@ public class SizeTest extends TestCase {
 
     public void testUnicastHeader() throws Exception {
         UNICAST.UnicastHeader hdr=new UNICAST.UnicastHeader(UNICAST.UnicastHeader.DATA, 322649);
+        _testSize(hdr);
+
+        hdr=new UNICAST.UnicastHeader(UNICAST.UnicastHeader.DATA, 322649, System.currentTimeMillis());
         _testSize(hdr);
     }
 
