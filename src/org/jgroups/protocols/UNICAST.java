@@ -32,9 +32,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Messages in both AckSenderWindows and AckReceiverWindows will be removed. A message will be removed from
  * AckSenderWindow when an ACK has been received for it and messages will be removed from AckReceiverWindow
  * whenever a message is received: the new message is added and then we try to remove as many messages as
- * possible (until we stop at a gap, or there are no more messages).
+ * possible (until we stop at a gap, or there are no more messages).<br/>
+ * UNICAST was enhanced in April 2009, the new design is described in doc/design/UNICAST.new.txt
  * @author Bela Ban
- * @version $Id: UNICAST.java,v 1.91.2.14 2008/06/17 08:21:26 belaban Exp $
+ * @version $Id: UNICAST.java,v 1.91.2.14.2.1 2009/04/01 15:25:20 belaban Exp $
  */
 public class UNICAST extends Protocol implements AckSenderWindow.RetransmitCommand {
     private final Vector<Address> members=new Vector<Address>(11);
@@ -674,14 +675,16 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
 
 
     public static class UnicastHeader extends Header implements Streamable {
-        public static final byte DATA=0;
-        public static final byte ACK=1;
+        public static final byte DATA             = 0;
+        public static final byte ACK              = 1;
+        public static final byte SEND_FIRST_SEQNO = 2;
 
         byte    type=DATA;
         long    seqno=0;
+        long    conn_id=0;
 
-        static final int serialized_size=Global.BYTE_SIZE + Global.LONG_SIZE;
-        private static final long serialVersionUID=-5590873777959784299L;
+        static final int serialized_size=Global.BYTE_SIZE + Global.LONG_SIZE * 2;
+        private static final long serialVersionUID=1928904199591045369L;
 
 
         public UnicastHeader() {} // used for externalization
@@ -691,15 +694,25 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
             this.seqno=seqno;
         }
 
+        public UnicastHeader(byte type, long seqno, long conn_id) {
+            this(type, seqno);
+            this.conn_id=conn_id;
+        }
+
         public String toString() {
-            return "[UNICAST: " + type2Str(type) + ", seqno=" + seqno + ']';
+            StringBuilder sb=new StringBuilder();
+            sb.append("[UNICAST: ").append(type2Str(type)).append(", seqno=").append(seqno);
+            if(conn_id != 0) sb.append(", conn_id=").append(conn_id);
+            sb.append(']');
+            return sb.toString();
         }
 
         public static String type2Str(byte t) {
             switch(t) {
-                case DATA: return "DATA";
-                case ACK: return "ACK";
-                default: return "<unknown>";
+                case DATA:             return "DATA";
+                case ACK:              return "ACK";
+                case SEND_FIRST_SEQNO: return "SEND_FIRST_SEQNO";
+                default:               return "<unknown>";
             }
         }
 
@@ -711,29 +724,36 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
         public void writeExternal(ObjectOutput out) throws IOException {
             out.writeByte(type);
             out.writeLong(seqno);
+            out.writeLong(conn_id);
         }
 
 
         public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
             type=in.readByte();
             seqno=in.readLong();
+            conn_id=in.readLong();
         }
 
         public void writeTo(DataOutputStream out) throws IOException {
             out.writeByte(type);
             out.writeLong(seqno);
+            out.writeLong(conn_id);
         }
 
         public void readFrom(DataInputStream in) throws IOException, IllegalAccessException, InstantiationException {
             type=in.readByte();
             seqno=in.readLong();
+            conn_id=in.readLong();
         }
     }
 
     private static final class Entry {
         AckReceiverWindow  received_msgs=null;  // stores all msgs rcvd by a certain peer in seqno-order
+        long               recv_conn_id=0;
+        
         AckSenderWindow    sent_msgs=null;      // stores (and retransmits) msgs sent by us to a certain peer
         long               sent_msgs_seqno=DEFAULT_FIRST_SEQNO;   // seqno for msgs sent by us
+        long               send_conn_id=0;
 
         void reset() {
             if(sent_msgs != null)
@@ -750,6 +770,7 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
                 sb.append("sent_msgs=").append(sent_msgs).append('\n');
             if(received_msgs != null)
                 sb.append("received_msgs=").append(received_msgs).append('\n');
+            sb.append("send_conn_id=" + send_conn_id + ", recv_conn_id=" + recv_conn_id + "\n");
             return sb.toString();
         }
     }
