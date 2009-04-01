@@ -4,7 +4,7 @@ New UNICAST design
 (see UNICAST.txt for the old design)
 
 Author: Bela Ban
-Version: $Id: UNICAST.new.txt,v 1.1.2.5 2009/04/01 11:01:17 belaban Exp $
+Version: $Id: UNICAST.new.txt,v 1.1.2.6 2009/04/01 11:10:32 belaban Exp $
 
 Motivation
 ----------
@@ -30,7 +30,7 @@ Goals
 
 #1 Handle the above scenarios
 
-#2 Handle the scenario where a member communicates with a non-member
+#2 Handle the scenario where a member communicates with a non-member (get rid of enabled_mbrs and prev_mbrs)
 
 #3 Handle the scenario where a member talks to a non existing (or previous) member. Get rid of
    ENABLE_UNICASTS_TO and age out connections to non existing members after some time (JGRP-942)
