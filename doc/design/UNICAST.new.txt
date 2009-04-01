@@ -4,7 +4,7 @@ New UNICAST design
 (see UNICAST.txt for the old design)
 
 Author: Bela Ban
-Version: $Id: UNICAST.new.txt,v 1.1.2.3 2009/04/01 09:27:40 belaban Exp $
+Version: $Id: UNICAST.new.txt,v 1.1.2.4 2009/04/01 10:16:07 belaban Exp $
 
 Motivation
 ----------
@@ -59,7 +59,7 @@ from B is #7.
 
 A sends a message to B:
 - If the entry for B is null, or the seqno=0:
-    - Create an entry, set the seqno to 1 and send-conn-id to the current time (needs to be unique, could also use UUIDs)
+    - Create an entry, set the seqno to 1 and set send-conn-id to the current time (needs to be unique, could also use UUIDs)
     - Add send-conn-id to the UnicastHeader and send the message
 - Else
     - Send the message with the next seqno (and conn-id=0)
@@ -91,11 +91,30 @@ A receives GET_FIRST_SEQNO from B:
 Scenarios
 ---------
 
+A creates new connection to B:
+
+B receives new connection:
+
+A and B close connection (e.g. based on a view change (partition))
+
+A closes the connection unilaterally (B keeps it open), then reopens it and sends a message
+
+B closes its connection unilaterally, then A sends a message to B
+
+Merge where A and B are in different partitions
+
+Merge where A and B are in overlapping partitions (A: {A}, B: {A,B} or A: {A,B}, B: {B})
+
+
+
+
 
 
 Issues
 ------
 - How do we handle retransmissions of the first message (first=true) ? We *cannot* create a new entry.recv_win, or
-else we trash already received msgs ! Use a UUID (as connection-ID) instead of first=true ? Maybe the system time
-is sufficient ? After all, the ID only has to be unique between A and B !
+  else we trash already received msgs ! Use a UUID (as connection-ID) instead of first=true ? Maybe the system time
+  is sufficient ? After all, the ID only has to be unique between A and B !
+  ==> Solved by using connection IDs (see above)
+  
 
