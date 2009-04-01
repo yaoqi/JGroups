@@ -16,7 +16,7 @@ import java.util.Vector;
  * Tests overlapping merges, e.g. A: {A,B}, B: {A,B} and C: {A,B,C}. Tests unicast as well as multicast seqno tables.<br/>
  * Related JIRA: https://jira.jboss.org/jira/browse/JGRP-940
  * @author Bela Ban
- * @version $Id: OverlappingMergeTest.java,v 1.1.2.2 2009/03/31 16:34:14 belaban Exp $
+ * @version $Id: OverlappingMergeTest.java,v 1.1.2.3 2009/04/01 06:23:03 belaban Exp $
  */
 public class OverlappingMergeTest extends ChannelTestBase {
     private JChannel a, b, c;
@@ -64,7 +64,7 @@ public class OverlappingMergeTest extends ChannelTestBase {
         c.connect("testUnicastingAfterOverlappingMerge");
 
         View view=c.getView();
-        assert view.size() == 3 : "view is " + view;
+        assertEquals("view is " + view, 3, view.size());
 
         sendMessages(a, b, c);
 
@@ -77,9 +77,12 @@ public class OverlappingMergeTest extends ChannelTestBase {
         System.out.println("A's view: " + a.getView());
         System.out.println("B's view: " + b.getView());
         System.out.println("C's view: " + c.getView());
-        assert a.getView().size() == 3 : "A's view is " + a.getView();
-        assert b.getView().size() == 2 : "B's view is " + b.getView();
-        assert c.getView().size() == 2 : "C's view is " + c.getView();
+        assertEquals("A's view is " + a.getView(), 3, a.getView().size());
+        assertEquals("B's view is " + b.getView(), 2, b.getView().size());
+        assertEquals("C's view is " + c.getView(), 2, c.getView().size());
+
+        System.out.println("sending messages while the cluster is partitioned");
+        sendMessages(a, b, c);
 
         // resume merging
         System.out.println("Merging started");
@@ -88,19 +91,24 @@ public class OverlappingMergeTest extends ChannelTestBase {
         Event merge_evt=new Event(Event.MERGE, coords);
         injectMergeEvent(merge_evt, a);
 
-        for(int i=0; i < 10; i++) {
-            if(a.getView().size() == 3 && b.getView().size() == 3 && c.getView().size() == 3)
-                break;
-            Util.sleep(1000);
-        }
         System.out.println("checking views after merge:");
+        for(int i=0; i < 20; i++) {
+            if(a.getView().size() == 3 && b.getView().size() == 3 && c.getView().size() == 3) {
+                System.out.println("views are correct: all views have a size of 3");
+                break;
+            }
+            System.out.print(".");
+            Util.sleep(500);
+        }
 
-        System.out.println("A's view: " + a.getView());
-        System.out.println("B's view: " + b.getView());
-        System.out.println("C's view: " + c.getView());
-        assert a.getView().size() == 3 : "A's view is " + a.getView();
-        assert b.getView().size() == 3 : "B's view is " + b.getView();
-        assert c.getView().size() == 3 : "C's view is " + c.getView();
+        View va=a.getView(), vb=b.getView(), vc=c.getView();
+
+        System.out.println("\nA's view: " + va);
+        System.out.println("B's view: " + vb);
+        System.out.println("C's view: " + vc);
+        assertEquals("A's view is " + va, 3, va.size());
+        assertEquals("B's view is " + vb, 3, vb.size());
+        assertEquals("C's view is " + vc, 3, vc.size());
 
         ra.clear(); rb.clear(); rc.clear();
         System.out.println("Sending messages after merge");
