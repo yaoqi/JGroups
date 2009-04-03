@@ -1,4 +1,4 @@
-// $Id: AckSenderWindow.java,v 1.27 2007/10/26 09:58:35 belaban Exp $
+// $Id: AckSenderWindow.java,v 1.27.4.1 2009/04/03 07:35:40 belaban Exp $
 
 package org.jgroups.stack;
 
@@ -11,6 +11,7 @@ import org.jgroups.util.TimeScheduler;
 import org.jgroups.util.Util;
 
 import java.util.TreeSet;
+import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -106,6 +107,12 @@ public class AckSenderWindow implements Retransmitter.RetransmitCommand {
     public void ack(long seqno) {
         msgs.remove(new Long(seqno));
         retransmitter.remove(seqno);
+    }
+
+    /** Returns the message with the lowest seqno */
+    public Message getLowestMessage() {
+        Long seqno=Collections.min(msgs.keySet());
+        return seqno != null? msgs.get(seqno) : null;
     }
 
     public int size() {
