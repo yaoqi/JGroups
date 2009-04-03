@@ -4,7 +4,7 @@ New UNICAST design
 (see UNICAST.txt for the old design)
 
 Author: Bela Ban
-Version: $Id: UNICAST.new.txt,v 1.1.2.8 2009/04/02 07:11:41 belaban Exp $
+Version: $Id: UNICAST.new.txt,v 1.1.2.9 2009/04/03 07:35:50 belaban Exp $
 
 Motivation
 ----------
@@ -64,38 +64,24 @@ A sends a message to B:
 - Else
     - Send the message with the next seqno (and conn-id=0)
 
-#B receives a message from A:
-#- If conn-id != 0
-#    - If entry or entry.recv_win for B is null
-#        - Create a new entry.recv_win with msg.seqno
-#        - Set entry.recv-conn-id to conn-id
-#    - Else:
-#        - If conn-id == entry.recv-conn-id: NOP (prevents duplicate connection establishments)
-#        - Else
-#            - Create a new entry.recv_win with msg.seqno
-#            - Set entry.recv-conn-id to conn-id
-#- Else
-#    - If entry or entry.recv_win is null:
-#        - Discard message
-#        - Send GET_FIRST_SEQNO to A
-#    - Else
-#        - Add message to entry.recv_win
-
-- If entry is null or entry.recv_win is null
-    - If conn-id != 0
-        - Create a new entry.recv_win with msg.seqno
-        - Set entry.recv-conn-id to conn-id
+B receives a message from A:
+- If conn-id == 0
+    - If entry.recv_win != null:
+        - Add message to entry.recv_win
     - Else
         - Discard message
         - Send GET_FIRST_SEQNO to A
 - Else
-    - If conn-id != 0
-        - If conn-id == entry.recv-conn-id: NOP (prevents duplicate connection establishments)
-        - Else
+    - If entry or entry.recv_win for B is null
+        - Create a new entry.recv_win with msg.seqno
+        - Set entry.recv-conn-id to conn-id
+    - Else:
+        - If conn-id != entry.recv-conn-id:
             - Create a new entry.recv_win with msg.seqno
             - Set entry.recv-conn-id to conn-id
-    - Else
-        - Add message to entry.recv_win
+        - Else
+            - NOP (prevents duplicate connection establishments)
+
 
 
 A receives GET_FIRST_SEQNO from B:

@@ -3,7 +3,6 @@ package org.jgroups.tests;
 import org.jgroups.*;
 import org.jgroups.protocols.FD;
 import org.jgroups.protocols.FD_ALL;
-import org.jgroups.protocols.MERGE2;
 import org.jgroups.protocols.pbcast.GMS;
 import org.jgroups.stack.ProtocolStack;
 import org.jgroups.util.Util;
@@ -16,7 +15,7 @@ import java.util.Vector;
  * Tests overlapping merges, e.g. A: {A,B}, B: {A,B} and C: {A,B,C}. Tests unicast as well as multicast seqno tables.<br/>
  * Related JIRA: https://jira.jboss.org/jira/browse/JGRP-940
  * @author Bela Ban
- * @version $Id: OverlappingMergeTest.java,v 1.1.2.4 2009/04/01 10:16:19 belaban Exp $
+ * @version $Id: OverlappingMergeTest.java,v 1.1.2.5 2009/04/03 07:36:09 belaban Exp $
  */
 public class OverlappingMergeTest extends ChannelTestBase {
     private JChannel a, b, c;
@@ -209,6 +208,10 @@ public class OverlappingMergeTest extends ChannelTestBase {
         public List<Message> getMulticasts() { return mcasts; }
         public List<Message> getUnicasts() { return ucasts; }
         public void clear() {mcasts.clear(); ucasts.clear();}
+
+        public String toString() {
+            return name;
+        }
     }
 
 
