@@ -15,7 +15,7 @@ import java.util.Vector;
  * Tests overlapping merges, e.g. A: {A,B}, B: {A,B} and C: {A,B,C}. Tests unicast tables<br/>
  * Related JIRA: https://jira.jboss.org/jira/browse/JGRP-940
  * @author Bela Ban
- * @version $Id: OverlappingUnicastMergeTest.java,v 1.1.2.1 2009/04/03 14:13:47 belaban Exp $
+ * @version $Id: OverlappingUnicastMergeTest.java,v 1.1.2.2 2009/04/03 14:24:25 belaban Exp $
  */
 public class OverlappingUnicastMergeTest extends ChannelTestBase {
     private JChannel a, b, c;
@@ -69,9 +69,7 @@ public class OverlappingUnicastMergeTest extends ChannelTestBase {
         checkReceivedMessages(15, ra, rb, rc);
 
         // Inject view {B,C} into B and C:
-        Vector<Address> members=new Vector<Address>(2);
-        members.add(b.getLocalAddress()); members.add(c.getLocalAddress());
-        View new_view=new View(new ViewId(b.getLocalAddress(), 10), members);
+        View new_view=Util.createView(b.getLocalAddress(), 10, b.getLocalAddress(), c.getLocalAddress());
         injectView(new_view, b, c);
 
         System.out.println("A's view: " + a.getView());
@@ -81,8 +79,23 @@ public class OverlappingUnicastMergeTest extends ChannelTestBase {
         assertEquals("B's view is " + b.getView(), 2, b.getView().size());
         assertEquals("C's view is " + c.getView(), 2, c.getView().size());
 
-        System.out.println("sending messages while the cluster is partitioned");
-         ra.clear(); rb.clear(); rc.clear();
+        ra.clear(); rb.clear(); rc.clear();
+        sendMessages(a, b, c);
+        Util.sleep(1000); // sleep a little to make sure async msgs have been received
+        checkReceivedMessages(15, ra, rb, rc);
+
+        // Inject view {A} into A, B and C:
+        new_view=Util.createView(a.getLocalAddress(), 10, a.getLocalAddress());
+        injectView(new_view, a, b, c);
+
+        System.out.println("A's view: " + a.getView());
+        System.out.println("B's view: " + b.getView());
+        System.out.println("C's view: " + c.getView());
+        assertEquals("A's view is " + a.getView(), 1, a.getView().size());
+        assertEquals("B's view is " + b.getView(), 1, b.getView().size());
+        assertEquals("C's view is " + c.getView(), 1, c.getView().size());
+
+        ra.clear(); rb.clear(); rc.clear();
         sendMessages(a, b, c);
         Util.sleep(1000); // sleep a little to make sure async msgs have been received
         checkReceivedMessages(15, ra, rb, rc);
@@ -137,7 +150,8 @@ public class OverlappingUnicastMergeTest extends ChannelTestBase {
             List<Message> ucasts=receiver.getUnicasts();
             int ucasts_received=ucasts.size();
             System.out.println("receiver " + receiver + ": ucasts=" + ucasts_received);
-            assert ucasts_received == num_ucasts : "ucasts: " + ucasts;
+            assertEquals("ucasts: " + ucasts, ucasts_received, num_ucasts);
+
         }
     }
 
