@@ -7,15 +7,13 @@ import org.jgroups.protocols.pbcast.GMS;
 import org.jgroups.stack.ProtocolStack;
 import org.jgroups.util.Util;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Vector;
+import java.util.*;
 
 /**
  * Tests overlapping merges, e.g. A: {A,B}, B: {A,B} and C: {A,B,C}. Tests unicast as well as multicast seqno tables.<br/>
  * Related JIRA: https://jira.jboss.org/jira/browse/JGRP-940
  * @author Bela Ban
- * @version $Id: OverlappingMergeTest.java,v 1.1.2.7 2009/04/06 11:47:11 belaban Exp $
+ * @version $Id: OverlappingMergeTest.java,v 1.1.2.8 2009/04/06 12:15:16 belaban Exp $
  */
 public class OverlappingMergeTest extends ChannelTestBase {
     private JChannel a, b, c;
@@ -24,11 +22,22 @@ public class OverlappingMergeTest extends ChannelTestBase {
     protected void setUp() throws Exception {
         super.setUp();
         ra=new MyReceiver("A"); rb=new MyReceiver("B"); rc=new MyReceiver("C");
+        a=createChannel(); a.setReceiver(ra);
+        b=createChannel(); b.setReceiver(rb);
+        c=createChannel(); c.setReceiver(rc);
+        modifyConfigs(a, b, c);
+
+        a.connect("testUnicastingAfterOverlappingMerge");
+        b.connect("testUnicastingAfterOverlappingMerge");
+        c.connect("testUnicastingAfterOverlappingMerge");
+        View view=c.getView();
+        assertEquals("view is " + view, 3, view.size());
     }
 
     protected void tearDown() throws Exception {
         super.tearDown();
         Util.close(c,b,a);
+        ra.clear(); rb.clear(); rc.clear();
     }
 
     /**
@@ -52,27 +61,13 @@ public class OverlappingMergeTest extends ChannelTestBase {
      * we have non-matching seqnos !
      * </ol>
      */
-    public void testUnicastingAfterOverlappingMerge() throws Exception {
-        a=createChannel(); a.setReceiver(ra);
-        b=createChannel(); b.setReceiver(rb);
-        c=createChannel(); c.setReceiver(rc);
-        modifyConfigs(a, b, c);
+    public void testOverlappingMergeWithBC() throws Exception {
+        sendAndCheckMessages(5, a, b, c);
 
-        a.connect("testUnicastingAfterOverlappingMerge");
-        b.connect("testUnicastingAfterOverlappingMerge");
-        c.connect("testUnicastingAfterOverlappingMerge");
+        // Inject view {B,C} into B and C:
+        View new_view=Util.createView(b.getLocalAddress(), 10, b.getLocalAddress(), c.getLocalAddress());
+        injectView(new_view, b, c);
 
-        View view=c.getView();
-        assertEquals("view is " + view, 3, view.size());
-
-        sendMessages(a, b, c);
-
-        Util.sleep(1000); // sleep a little to make sure async msgs have been received
-        checkReceivedMessages(15, 15, ra, rb, rc);
-
-        // send a SUSPECT(A) event up B's stack, B will become coord and install {B,C} in itself and C
-        injectSuspectEvent(b, a.getLocalAddress());
-        Util.sleep(1000);
         System.out.println("A's view: " + a.getView());
         System.out.println("B's view: " + b.getView());
         System.out.println("C's view: " + c.getView());
@@ -81,7 +76,7 @@ public class OverlappingMergeTest extends ChannelTestBase {
         assertEquals("C's view is " + c.getView(), 2, c.getView().size());
 
         System.out.println("sending messages while the cluster is partitioned");
-        sendMessages(a, b, c);
+        sendAndCheckMessages(5, a, b, c);
 
         // resume merging
         System.out.println("Merging started");
@@ -113,7 +108,7 @@ public class OverlappingMergeTest extends ChannelTestBase {
 
         ra.clear(); rb.clear(); rc.clear();
         System.out.println("Sending messages after merge");
-        sendMessages(a, b, c);
+        sendAndCheckMessages(5, a, b, c);
         Util.sleep(1000); // sleep a little to make sure async msgs have been received
         checkReceivedMessages(15, 15, ra, rb, rc);
     }
@@ -132,6 +127,17 @@ public class OverlappingMergeTest extends ChannelTestBase {
         return null;
     }
 
+    private static void injectView(View view, JChannel ... channels) {
+        for(JChannel ch: channels) {
+            ch.down(new Event(Event.VIEW_CHANGE, view));
+            ch.up(new Event(Event.VIEW_CHANGE, view));
+        }
+        for(JChannel ch: channels) {
+            MyReceiver receiver=(MyReceiver)ch.getReceiver();
+            System.out.println("[" + receiver.name + "] view=" + ch.getView());
+        }
+    }
+
     private static void injectSuspectEvent(JChannel ch, Address suspected_mbr) {
         GMS gms=(GMS)ch.getProtocolStack().findProtocol(GMS.class);
         gms.up(new Event(Event.SUSPECT, suspected_mbr));
@@ -145,7 +151,14 @@ public class OverlappingMergeTest extends ChannelTestBase {
     }
 
 
-    private static void sendMessages(JChannel ... channels) throws Exception {
+
+    private void sendAndCheckMessages(int num_msgs, JChannel ... channels) throws Exception {
+        ra.clear(); rb.clear(); rc.clear();
+
+        Set<Address> mbrs=new HashSet<Address>(channels.length);
+        for(JChannel ch: channels)
+            mbrs.add(ch.getLocalAddress());
+
         // 1. send multicast messages
         for(JChannel ch: channels) {
             Address addr=ch.getLocalAddress();
@@ -154,16 +167,22 @@ public class OverlappingMergeTest extends ChannelTestBase {
         }
 
         // 2. send unicast messages
-        ArrayList<Address> mbrs=new ArrayList<Address>(channels[0].getView().getMembers());
         for(JChannel ch: channels) {
             Address addr=ch.getLocalAddress();
             for(Address dest: mbrs) {
-                for(int i=1; i <=5; i++) {
+                for(int i=1; i <= num_msgs; i++) {
                     ch.send(dest, null, "unicast msg #" + i + " from " + addr);
                 }
             }
         }
+        Util.sleep(1000);
+        int total_msgs=num_msgs * channels.length;
+        MyReceiver[] receivers=new MyReceiver[channels.length];
+        for(int i=0; i < channels.length; i++)
+            receivers[i]=(MyReceiver)channels[i].getReceiver();
+        checkReceivedMessages(total_msgs, total_msgs, receivers);
     }
+    
 
     private static void checkReceivedMessages(int num_mcasts, int num_ucasts, MyReceiver ... receivers) {
         for(MyReceiver receiver: receivers) {
@@ -190,7 +209,7 @@ public class OverlappingMergeTest extends ChannelTestBase {
                 fd_all.setShun(false);
 
             stack.removeProtocol("MERGE2");
-
+            stack.removeProtocol("FC");
             stack.removeProtocol("VERIFY_SUSPECT");
         }
     }
