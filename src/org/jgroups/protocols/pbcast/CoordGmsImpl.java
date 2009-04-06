@@ -1,4 +1,4 @@
-// $Id: CoordGmsImpl.java,v 1.82.2.16 2008/06/19 15:39:11 vlada Exp $
+// $Id: CoordGmsImpl.java,v 1.82.2.16.2.1 2009/04/06 11:30:21 belaban Exp $
 
 package org.jgroups.protocols.pbcast;
 
@@ -773,8 +773,8 @@ public class CoordGmsImpl extends GmsImpl {
         Vector<Address> coords=null; // list of subgroup coordinators to be contacted
 
         public void start(Vector<Address> groupCoord) {
-            this.coords = groupCoord != null ? new Vector<Address>(groupCoord) : null;
-            if(!isRunning()) {              
+            if(!isRunning()) {       
+                this.coords = groupCoord != null ? new Vector<Address>(groupCoord) : null;
                 t=gms.getThreadFactory().newThread(this, "MergeTask");               
                 t.setDaemon(true);
                 t.start();

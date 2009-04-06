@@ -15,7 +15,7 @@ import java.util.Vector;
  * Tests overlapping merges, e.g. A: {A,B}, B: {A,B} and C: {A,B,C}. Tests unicast as well as multicast seqno tables.<br/>
  * Related JIRA: https://jira.jboss.org/jira/browse/JGRP-940
  * @author Bela Ban
- * @version $Id: OverlappingMergeTest.java,v 1.1.2.5 2009/04/03 07:36:09 belaban Exp $
+ * @version $Id: OverlappingMergeTest.java,v 1.1.2.6 2009/04/06 11:30:29 belaban Exp $
  */
 public class OverlappingMergeTest extends ChannelTestBase {
     private JChannel a, b, c;
@@ -88,7 +88,9 @@ public class OverlappingMergeTest extends ChannelTestBase {
         Vector<Address> coords=new Vector<Address>(2);
         coords.add(a.getLocalAddress()); coords.add(b.getLocalAddress());
         Event merge_evt=new Event(Event.MERGE, coords);
-        injectMergeEvent(merge_evt, a);
+
+        JChannel merge_leader=determineMergeLeader(a, b);
+        injectMergeEvent(merge_evt, merge_leader);
 
         System.out.println("checking views after merge:");
         for(int i=0; i < 20; i++) {
@@ -114,6 +116,20 @@ public class OverlappingMergeTest extends ChannelTestBase {
         sendMessages(a, b, c);
         Util.sleep(1000); // sleep a little to make sure async msgs have been received
         checkReceivedMessages(15, 15, ra, rb, rc);
+    }
+
+    private static JChannel determineMergeLeader(JChannel ... coords) {
+        Membership tmp=new Membership();
+        for(JChannel ch: coords) {
+            tmp.add(ch.getLocalAddress());
+        }
+        tmp.sort();
+        Address  merge_leader=tmp.elementAt(0);
+        for(JChannel ch: coords) {
+            if(ch.getLocalAddress().equals(merge_leader))
+                return ch;
+        }
+        return null;
     }
 
     private static void injectSuspectEvent(JChannel ch, Address suspected_mbr) {

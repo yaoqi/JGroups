@@ -3,19 +3,19 @@ package org.jgroups.tests;
 import org.jgroups.*;
 import org.jgroups.protocols.FD;
 import org.jgroups.protocols.FD_ALL;
-import org.jgroups.protocols.pbcast.GMS;
 import org.jgroups.stack.ProtocolStack;
 import org.jgroups.util.Util;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Vector;
+import java.util.Set;
 
 /**
  * Tests overlapping merges, e.g. A: {A,B}, B: {A,B} and C: {A,B,C}. Tests unicast tables<br/>
  * Related JIRA: https://jira.jboss.org/jira/browse/JGRP-940
  * @author Bela Ban
- * @version $Id: OverlappingUnicastMergeTest.java,v 1.1.2.2 2009/04/03 14:24:25 belaban Exp $
+ * @version $Id: OverlappingUnicastMergeTest.java,v 1.1.2.3 2009/04/06 11:30:37 belaban Exp $
  */
 public class OverlappingUnicastMergeTest extends ChannelTestBase {
     private JChannel a, b, c;
@@ -24,6 +24,17 @@ public class OverlappingUnicastMergeTest extends ChannelTestBase {
     protected void setUp() throws Exception {
         super.setUp();
         ra=new MyReceiver("A"); rb=new MyReceiver("B"); rc=new MyReceiver("C");
+        a=createChannel(); a.setReceiver(ra);
+        b=createChannel(); b.setReceiver(rb);
+        c=createChannel(); c.setReceiver(rc);
+        modifyConfigs(a, b, c);
+
+        a.connect("OverlappingUnicastMergeTest");
+        b.connect("OverlappingUnicastMergeTest");
+        c.connect("OverlappingUnicastMergeTest");
+
+        View view=c.getView();
+        assertEquals("view is " + view, 3, view.size());
     }
 
     protected void tearDown() throws Exception {
@@ -31,6 +42,10 @@ public class OverlappingUnicastMergeTest extends ChannelTestBase {
         Util.close(c,b,a);
     }
 
+
+    public void testWithAllViewsInSync() throws Exception {
+        sendAndCheckMessages(5, a, b, c);
+    }
 
     /**
      * Verifies that unicasts are received correctly by all participants after an overlapping merge. The following steps
@@ -44,105 +59,76 @@ public class OverlappingUnicastMergeTest extends ChannelTestBase {
      * <li/>B and C install {B,C}
      * <li/>B and C trash the connection table for A in UNICAST
      * <li/>A still has view {A,B,C} and all connection tables intact in UNICAST
-     * <li/>We now inject a MERGE(A,B) event into A. This should cause A and B as coords to create a new MergeView {A,B,C}
-     * <li/>The merge already fails because the unicast between A and B fails due to the reason given below !
-     *      Once this is fixed, the next step below should work, too !
-     * <li/>A sends a unicast to B and C. This should fail until JGRP-940 has been fixed !
-     * <li/>Reason: B and C trashed A's conntables in UNICAST, but A didn't trash its conn tables for B and C, so
-     * we have non-matching seqnos !
+     * <li/>We now send N unicasts from everyone to everyone else, all the unicasts should be received.
      * </ol>
      */
-    public void testUnicastingAfterOverlappingMerge() throws Exception {
-        a=createChannel(); a.setReceiver(ra);
-        b=createChannel(); b.setReceiver(rb);
-        c=createChannel(); c.setReceiver(rc);
-        modifyConfigs(a, b, c);
-
-        a.connect("testUnicastingAfterOverlappingMerge");
-        b.connect("testUnicastingAfterOverlappingMerge");
-        c.connect("testUnicastingAfterOverlappingMerge");
-
-        View view=c.getView();
-        assertEquals("view is " + view, 3, view.size());
-        sendMessages(a, b, c);
-        Util.sleep(1000); // sleep a little to make sure async msgs have been received
-        checkReceivedMessages(15, ra, rb, rc);
-
+    public void testWithViewBC() throws Exception {
         // Inject view {B,C} into B and C:
         View new_view=Util.createView(b.getLocalAddress(), 10, b.getLocalAddress(), c.getLocalAddress());
         injectView(new_view, b, c);
-
-        System.out.println("A's view: " + a.getView());
-        System.out.println("B's view: " + b.getView());
-        System.out.println("C's view: " + c.getView());
         assertEquals("A's view is " + a.getView(), 3, a.getView().size());
         assertEquals("B's view is " + b.getView(), 2, b.getView().size());
         assertEquals("C's view is " + c.getView(), 2, c.getView().size());
+        sendAndCheckMessages(5, a, b, c);
+    }
 
-        ra.clear(); rb.clear(); rc.clear();
-        sendMessages(a, b, c);
-        Util.sleep(1000); // sleep a little to make sure async msgs have been received
-        checkReceivedMessages(15, ra, rb, rc);
-
+    public void testWithViewA() throws Exception {
         // Inject view {A} into A, B and C:
-        new_view=Util.createView(a.getLocalAddress(), 10, a.getLocalAddress());
+        View new_view=Util.createView(a.getLocalAddress(), 10, a.getLocalAddress());
         injectView(new_view, a, b, c);
-
-        System.out.println("A's view: " + a.getView());
-        System.out.println("B's view: " + b.getView());
-        System.out.println("C's view: " + c.getView());
-        assertEquals("A's view is " + a.getView(), 1, a.getView().size());
-        assertEquals("B's view is " + b.getView(), 1, b.getView().size());
-        assertEquals("C's view is " + c.getView(), 1, c.getView().size());
-
-        ra.clear(); rb.clear(); rc.clear();
-        sendMessages(a, b, c);
-        Util.sleep(1000); // sleep a little to make sure async msgs have been received
-        checkReceivedMessages(15, ra, rb, rc);
+        sendAndCheckMessages(5, a, b, c);
     }
 
-
-    private static JChannel determineMergeLeader(JChannel ... coords) {
-        Membership tmp=new Membership();
-        for(JChannel ch: coords) {
-            tmp.add(ch.getLocalAddress());
-        }
-        tmp.sort();
-        Address  merge_leader=tmp.elementAt(0);
-        for(JChannel ch: coords) {
-            if(ch.getLocalAddress().equals(merge_leader))
-                return ch;
-        }
-        return null;
+    public void testWithViewC() throws Exception {
+        // Inject view {A} into A, B and C:
+        View new_view=Util.createView(c.getLocalAddress(), 10, c.getLocalAddress());
+        injectView(new_view, a, b, c);
+        sendAndCheckMessages(5, a, b, c);
     }
+
+    public void testWithEveryoneHavingASingletonView() throws Exception {
+        // Inject view {A} into A, B and C:
+        injectView(Util.createView(a.getLocalAddress(), 10, a.getLocalAddress()), a);
+        injectView(Util.createView(b.getLocalAddress(), 10, b.getLocalAddress()), b);
+        injectView(Util.createView(c.getLocalAddress(), 10, c.getLocalAddress()), c);
+        sendAndCheckMessages(5, a, b, c);
+    }
+
 
     private static void injectView(View view, JChannel ... channels) {
         for(JChannel ch: channels) {
             ch.down(new Event(Event.VIEW_CHANGE, view));
             ch.up(new Event(Event.VIEW_CHANGE, view));
         }
-    }
-
-    private static void injectMergeEvent(Event evt, JChannel ... channels) {
         for(JChannel ch: channels) {
-            GMS gms=(GMS)ch.getProtocolStack().findProtocol(GMS.class);
-            gms.up(evt);
+            MyReceiver receiver=(MyReceiver)ch.getReceiver();
+            System.out.println("[" + receiver.name + "] view=" + ch.getView());
         }
     }
 
 
-    private static void sendMessages(JChannel ... channels) throws Exception {
+    private void sendAndCheckMessages(int num_msgs, JChannel ... channels) throws Exception {
+        ra.clear(); rb.clear(); rc.clear();
         // 1. send unicast messages
-        ArrayList<Address> mbrs=new ArrayList<Address>(channels[0].getView().getMembers());
+        Set<Address> mbrs=new HashSet<Address>(channels.length);
+        for(JChannel ch: channels)
+            mbrs.add(ch.getLocalAddress());
+
         for(JChannel ch: channels) {
             Address addr=ch.getLocalAddress();
             for(Address dest: mbrs) {
                 ch.down(new Event(Event.ENABLE_UNICASTS_TO, dest));
-                for(int i=1; i <=5; i++) {
+                for(int i=1; i <= num_msgs; i++) {
                     ch.send(dest, null, "unicast msg #" + i + " from " + addr);
                 }
             }
         }
+        Util.sleep(1000);
+        int total_msgs=num_msgs * channels.length;
+        MyReceiver[] receivers=new MyReceiver[channels.length];
+        for(int i=0; i < channels.length; i++)
+            receivers[i]=(MyReceiver)channels[i].getReceiver();
+        checkReceivedMessages(total_msgs, receivers);
     }
 
     private static void checkReceivedMessages(int num_ucasts, MyReceiver ... receivers) {
@@ -150,9 +136,16 @@ public class OverlappingUnicastMergeTest extends ChannelTestBase {
             List<Message> ucasts=receiver.getUnicasts();
             int ucasts_received=ucasts.size();
             System.out.println("receiver " + receiver + ": ucasts=" + ucasts_received);
-            assertEquals("ucasts: " + ucasts, ucasts_received, num_ucasts);
-
+            assertEquals("ucasts for " + receiver + ": " + print(ucasts), num_ucasts, ucasts_received);
         }
+    }
+
+    public static String print(List<Message> list) {
+        StringBuilder sb=new StringBuilder();
+        for(Message msg: list) {
+            sb.append(msg.getSrc()).append(": ").append(msg.getObject()).append(" ");
+        }
+        return sb.toString();
     }
 
     private static void modifyConfigs(JChannel ... channels) throws Exception {
@@ -168,8 +161,8 @@ public class OverlappingUnicastMergeTest extends ChannelTestBase {
                 fd_all.setShun(false);
 
             stack.removeProtocol("MERGE2");
-
             stack.removeProtocol("VERIFY_SUSPECT");
+            stack.removeProtocol("FC");
         }
     }
 
@@ -191,7 +184,7 @@ public class OverlappingUnicastMergeTest extends ChannelTestBase {
         }
 
         public void viewAccepted(View new_view) {
-            System.out.println("[" + name + "] " + new_view);
+            // System.out.println("[" + name + "] " + new_view);
         }
 
         public List<Message> getUnicasts() { return ucasts; }
