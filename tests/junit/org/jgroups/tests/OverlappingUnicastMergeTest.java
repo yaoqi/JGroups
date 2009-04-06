@@ -15,7 +15,7 @@ import java.util.Set;
  * Tests overlapping merges, e.g. A: {A,B}, B: {A,B} and C: {A,B,C}. Tests unicast tables<br/>
  * Related JIRA: https://jira.jboss.org/jira/browse/JGRP-940
  * @author Bela Ban
- * @version $Id: OverlappingUnicastMergeTest.java,v 1.1.2.3 2009/04/06 11:30:37 belaban Exp $
+ * @version $Id: OverlappingUnicastMergeTest.java,v 1.1.2.4 2009/04/06 11:47:11 belaban Exp $
  */
 public class OverlappingUnicastMergeTest extends ChannelTestBase {
     private JChannel a, b, c;
@@ -117,7 +117,6 @@ public class OverlappingUnicastMergeTest extends ChannelTestBase {
         for(JChannel ch: channels) {
             Address addr=ch.getLocalAddress();
             for(Address dest: mbrs) {
-                ch.down(new Event(Event.ENABLE_UNICASTS_TO, dest));
                 for(int i=1; i <= num_msgs; i++) {
                     ch.send(dest, null, "unicast msg #" + i + " from " + addr);
                 }

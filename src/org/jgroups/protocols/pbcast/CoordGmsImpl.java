@@ -1,4 +1,4 @@
-// $Id: CoordGmsImpl.java,v 1.82.2.16.2.1 2009/04/06 11:30:21 belaban Exp $
+// $Id: CoordGmsImpl.java,v 1.82.2.16.2.2 2009/04/06 11:47:10 belaban Exp $
 
 package org.jgroups.protocols.pbcast;
 
@@ -273,7 +273,6 @@ public class CoordGmsImpl extends GmsImpl {
             ack.setFlag(Message.OOB);
             GMS.GmsHeader ack_hdr=new GMS.GmsHeader(GMS.GmsHeader.INSTALL_MERGE_VIEW_OK);
             ack.putHeader(gms.getName(), ack_hdr);
-            gms.getDownProtocol().down(new Event(Event.ENABLE_UNICASTS_TO, data.getSender()));
             gms.getDownProtocol().down(new Event(Event.MSG, ack));
         }
         merging=false;
@@ -489,8 +488,7 @@ public class CoordGmsImpl extends GmsImpl {
             msg.setFlag(Message.OOB);
             GMS.GmsHeader hdr=new GMS.GmsHeader(GMS.GmsHeader.LEAVE_RSP);
             msg.putHeader(gms.getName(), hdr);
-            gms.getDownProtocol().down(new Event(Event.ENABLE_UNICASTS_TO,address));
-            gms.getDownProtocol().down(new Event(Event.MSG, msg));              
+            gms.getDownProtocol().down(new Event(Event.MSG, msg));
         }       
     }
 
@@ -513,9 +511,6 @@ public class CoordGmsImpl extends GmsImpl {
                 log.debug("Merge leader " + gms.local_addr + " sending MERGE_REQ to " + coords);            
             
             for(Address coord:coords) {               
-                // this allows UNICAST to remove coord from previous_members in case of a merge
-                gms.getDownProtocol().down(new Event(Event.ENABLE_UNICASTS_TO, coord));
-
                 Message msg=new Message(coord, null, null);
                 msg.setFlag(Message.OOB);
                 GMS.GmsHeader hdr=new GMS.GmsHeader(GMS.GmsHeader.MERGE_REQ);
@@ -725,7 +720,6 @@ public class CoordGmsImpl extends GmsImpl {
         hdr.my_digest=digest;
         msg.putHeader(gms.getName(), hdr);
         if(log.isDebugEnabled()) log.debug("response=" + hdr);
-        gms.getDownProtocol().down(new Event(Event.ENABLE_UNICASTS_TO, sender));
         gms.getDownProtocol().down(new Event(Event.MSG, msg));
     }
 

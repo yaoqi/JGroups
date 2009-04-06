@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * Tests sending of unicasts to members not in the group (http://jira.jboss.com/jira/browse/JGRP-357)
  * @author Bela Ban
- * @version $Id: UnicastEnableToTest.java,v 1.1 2007/03/09 20:27:05 belaban Exp $
+ * @version $Id: UnicastEnableToTest.java,v 1.1.6.1 2009/04/06 11:47:30 belaban Exp $
  */
 public class UnicastEnableToTest extends TestCase {
     JChannel channel=null, channel2=null;
@@ -43,13 +43,7 @@ public class UnicastEnableToTest extends TestCase {
     public void testUnicastMessageToUnknownMember() throws Exception {
         IpAddress addr=new IpAddress("127.0.0.1", 8976);
         System.out.println("sending message to non-existing destination " + addr);
-        try {
-            channel.send(new Message(addr, null, "Hello world"));
-            fail("we should not get here; sending of message to " + addr + " should have failed");
-        }
-        catch(IllegalArgumentException ex) {
-            System.out.println("received exception as expected");
-        }
+        channel.send(new Message(addr, null, "Hello world"));
     }
 
 
@@ -76,13 +70,7 @@ public class UnicastEnableToTest extends TestCase {
         Address dest=channel2.getLocalAddress();
         channel2.close();
         Util.sleep(100);
-        try {
-            channel.send(new Message(dest, null, "hello"));
-            fail("we should not come here as message to previous member " + dest + " should throw exception");
-        }
-        catch(IllegalArgumentException ex) {
-            System.out.println("got an exception, as expected");
-        }
+        channel.send(new Message(dest, null, "hello"));
     }
 
 
@@ -93,7 +81,6 @@ public class UnicastEnableToTest extends TestCase {
         Address dest=channel2.getLocalAddress();
         channel2.close();
         Util.sleep(100);
-        channel.down(new Event(Event.ENABLE_UNICASTS_TO, dest));
         channel.send(new Message(dest, null, "hello"));
     }
 
