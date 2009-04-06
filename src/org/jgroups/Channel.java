@@ -1,4 +1,4 @@
-// $Id: Channel.java,v 1.37.2.3 2008/02/07 09:15:26 belaban Exp $
+// $Id: Channel.java,v 1.37.2.3.2.1 2009/04/06 11:29:48 belaban Exp $
 
 package org.jgroups;
 
@@ -367,6 +367,10 @@ public abstract class Channel implements Transport {
     /** Sets the receiver, which will handle all messages, view changes etc */
     public void setReceiver(Receiver r) {
         receiver=r;
+    }
+
+    public Receiver getReceiver() {
+        return receiver;
     }
 
     /**
