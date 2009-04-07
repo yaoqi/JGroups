@@ -30,7 +30,7 @@ import java.util.*;
 /**
  * Collection of various utility routines that can not be assigned to other classes.
  * @author Bela Ban
- * @version $Id: Util.java,v 1.137.2.11.2.1 2009/04/06 11:12:23 belaban Exp $
+ * @version $Id: Util.java,v 1.137.2.11.2.2 2009/04/07 09:52:40 belaban Exp $
  */
 public class Util {
 
@@ -1499,6 +1499,13 @@ public class Util {
                 return false;
         }
         return true;
+    }
+
+
+    public static boolean isCoordinator(JChannel ch) {
+        View view=ch.getView();
+        Address local_addr=ch.getLocalAddress();
+        return view.getMembers().firstElement().equals(local_addr);
     }
 
 
