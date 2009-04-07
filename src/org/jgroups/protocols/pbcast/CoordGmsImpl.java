@@ -1,4 +1,4 @@
-// $Id: CoordGmsImpl.java,v 1.82.2.16.2.3 2009/04/07 09:55:50 belaban Exp $
+// $Id: CoordGmsImpl.java,v 1.82.2.16.2.4 2009/04/07 16:20:26 belaban Exp $
 
 package org.jgroups.protocols.pbcast;
 
@@ -861,11 +861,6 @@ public class CoordGmsImpl extends GmsImpl {
                 if(log.isDebugEnabled())
                     log.debug("At " + gms.local_addr + " cancelling merge due to timer timeout (" + timeout + " ms)");
                 cancelMerge();
-            }
-            else {
-                if(log.isWarnEnabled())
-                    log.warn("At " + gms.local_addr +" timer kicked in after " + timeout + " ms, but no (or different) merge was in progress: " +
-                              "merge_id=" + merge_id + ", my_merge_id=" + my_merge_id);
             }
         }
     }
