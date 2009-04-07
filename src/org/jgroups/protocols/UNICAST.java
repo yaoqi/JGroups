@@ -34,7 +34,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * possible (until we stop at a gap, or there are no more messages).<br/>
  * UNICAST was enhanced in April 2009, the new design is described in doc/design/UNICAST.new.txt
  * @author Bela Ban
- * @version $Id: UNICAST.java,v 1.91.2.14.2.3 2009/04/06 11:49:28 belaban Exp $
+ * @version $Id: UNICAST.java,v 1.91.2.14.2.4 2009/04/07 16:51:52 belaban Exp $
  */
 public class UNICAST extends Protocol implements AckSenderWindow.RetransmitCommand {
     private final Vector<Address> members=new Vector<Address>(11);
@@ -650,6 +650,7 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
 
     private void sendRequestForFirstSeqno(Address dest) {
         Message msg=new Message(dest);
+        msg.setFlag(Message.OOB);
         UnicastHeader hdr=new UnicastHeader(UnicastHeader.SEND_FIRST_SEQNO, 0);
         msg.putHeader(name, hdr);
         if(log.isTraceEnabled())
