@@ -4,8 +4,10 @@ import org.jgroups.*;
 import org.jgroups.protocols.FD;
 import org.jgroups.protocols.FD_ALL;
 import org.jgroups.protocols.pbcast.GMS;
+import org.jgroups.protocols.pbcast.NAKACK;
 import org.jgroups.stack.ProtocolStack;
 import org.jgroups.util.Util;
+import org.jgroups.util.Digest;
 
 import java.util.*;
 
@@ -13,7 +15,7 @@ import java.util.*;
  * Tests overlapping merges, e.g. A: {A,B}, B: {A,B} and C: {A,B,C}. Tests unicast as well as multicast seqno tables.<br/>
  * Related JIRA: https://jira.jboss.org/jira/browse/JGRP-940
  * @author Bela Ban
- * @version $Id: OverlappingMergeTest.java,v 1.1.2.9 2009/04/07 08:01:45 belaban Exp $
+ * @version $Id: OverlappingMergeTest.java,v 1.1.2.10 2009/04/07 09:53:39 belaban Exp $
  */
 public class OverlappingMergeTest extends ChannelTestBase {
     private JChannel a, b, c;
@@ -64,10 +66,16 @@ public class OverlappingMergeTest extends ChannelTestBase {
     public void testOverlappingMergeWithBC() throws Exception {
         sendAndCheckMessages(5, a, b, c);
 
+        System.out.println("\n ==== Digests are:\n" + dumpDigests(a,b,c));
+
         // Inject view {B,C} into B and C:
         View new_view=Util.createView(b.getLocalAddress(), 10, b.getLocalAddress(), c.getLocalAddress());
         System.out.println("\n ==== Injecting view " + new_view + " into B and C ====");
         injectView(new_view, b, c);
+        makeCoordinator(b);
+        assertTrue(Util.isCoordinator(a));
+        assertTrue(Util.isCoordinator(b));
+        assertFalse(Util.isCoordinator(c));
 
         System.out.println("A's view: " + a.getView());
         System.out.println("B's view: " + b.getView());
@@ -78,13 +86,14 @@ public class OverlappingMergeTest extends ChannelTestBase {
 
         System.out.println("\n==== Sending messages while the cluster is partitioned ====");
         sendAndCheckMessages(5, a, b, c);
+        System.out.println("\n ==== Digests are:\n" + dumpDigests(a,b,c));
 
         // start merging
         Vector<Address> coords=new Vector<Address>(2);
         coords.add(a.getLocalAddress()); coords.add(b.getLocalAddress());
         Event merge_evt=new Event(Event.MERGE, coords);
         JChannel merge_leader=determineMergeLeader(a, b);
-        System.out.println("\n==== Starting the merge (leader=" + merge_leader.getLocalAddress() + ") ====");
+        System.out.println("\n==== Injecting a merge event (leader=" + merge_leader.getLocalAddress() + ") ====");
         injectMergeEvent(merge_evt, merge_leader);
 
         System.out.println("\n==== checking views after merge ====:");
@@ -97,8 +106,9 @@ public class OverlappingMergeTest extends ChannelTestBase {
             Util.sleep(500);
         }
 
-        View va=a.getView(), vb=b.getView(), vc=c.getView();
+        System.out.println("\n ==== Digests after the merge:\n" + dumpDigests(a,b,c));
 
+        View va=a.getView(), vb=b.getView(), vc=c.getView();
         System.out.println("\nA's view: " + va);
         System.out.println("B's view: " + vb);
         System.out.println("C's view: " + vc);
@@ -106,11 +116,25 @@ public class OverlappingMergeTest extends ChannelTestBase {
         assertEquals("B's view is " + vb, 3, vb.size());
         assertEquals("C's view is " + vc, 3, vc.size());
 
-        ra.clear(); rb.clear(); rc.clear();
-        System.out.println("Sending messages after merge");
+        System.out.println("\n==== Sending messages after merge ====");
         sendAndCheckMessages(5, a, b, c);
-        Util.sleep(1000); // sleep a little to make sure async msgs have been received
-        checkReceivedMessages(5, ra, rb, rc);
+    }
+
+    private static void makeCoordinator(JChannel ch) {
+        GMS gms=(GMS)ch.getProtocolStack().findProtocol(GMS.class);
+        gms.becomeCoordinator();
+    }
+
+
+    private static String dumpDigests(JChannel ... channels) {
+        StringBuilder sb=new StringBuilder();
+        for(JChannel ch: channels) {
+            sb.append(ch.getLocalAddress()).append(": ");
+            NAKACK nakack=(NAKACK)ch.getProtocolStack().findProtocol(NAKACK.class);
+            Digest digest=nakack.getDigest();
+            sb.append(digest).append("\n");
+        }
+        return sb.toString();
     }
 
     private static JChannel determineMergeLeader(JChannel ... coords) {
@@ -138,10 +162,6 @@ public class OverlappingMergeTest extends ChannelTestBase {
         }
     }
 
-    private static void injectSuspectEvent(JChannel ch, Address suspected_mbr) {
-        GMS gms=(GMS)ch.getProtocolStack().findProtocol(GMS.class);
-        gms.up(new Event(Event.SUSPECT, suspected_mbr));
-    }
 
     private static void injectMergeEvent(Event evt, JChannel ... channels) {
         for(JChannel ch: channels) {
@@ -149,7 +169,6 @@ public class OverlappingMergeTest extends ChannelTestBase {
             gms.up(evt);
         }
     }
-
 
 
     private void sendAndCheckMessages(int num_msgs, JChannel ... channels) throws Exception {
@@ -163,7 +182,7 @@ public class OverlappingMergeTest extends ChannelTestBase {
         for(JChannel ch: channels) {
             Address addr=ch.getLocalAddress();
             for(int i=1; i <= 5; i++)
-                ch.send(null, null, "multicast msg #" + i + " from " + addr);
+                ch.send(null, null, "#" + i);
         }
 
         // 2. send unicast messages
@@ -171,7 +190,7 @@ public class OverlappingMergeTest extends ChannelTestBase {
             Address addr=ch.getLocalAddress();
             for(Address dest: mbrs) {
                 for(int i=1; i <= num_msgs; i++) {
-                    ch.send(dest, null, "unicast msg #" + i + " from " + addr);
+                    ch.send(dest, null, "#");
                 }
             }
         }
