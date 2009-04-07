@@ -21,7 +21,7 @@ import org.jgroups.protocols.pbcast.GmsImpl.Request;
  * accordingly. Use VIEW_ENFORCER on top of this layer to make sure new members don't receive
  * any messages until they are members
  * @author Bela Ban
- * @version $Id: GMS.java,v 1.126.2.20.2.1 2009/04/06 11:47:10 belaban Exp $
+ * @version $Id: GMS.java,v 1.126.2.20.2.2 2009/04/07 09:55:12 belaban Exp $
  */
 public class GMS extends Protocol {
     private GmsImpl           impl=null;
@@ -372,7 +372,7 @@ public class GMS extends Protocol {
      */
     public void castViewChangeWithDest(View new_view, Digest digest, JoinRsp jr, Collection <Address> newMembers) {           
         if(log.isTraceEnabled())
-            log.trace("mcasting view {" + new_view + "} (" + new_view.size() + " mbrs)\n");
+            log.trace(local_addr + ": mcasting view {" + new_view + "} (" + new_view.size() + " mbrs)\n");
        
         Message view_change_msg=new Message(); // bcast to all members
         GmsHeader hdr=new GmsHeader(GmsHeader.VIEW, new_view);
@@ -761,10 +761,6 @@ public class GMS extends Protocol {
 
                     case GmsHeader.MERGE_REQ:
                         down_prot.down(new Event(Event.SUSPEND_STABLE, 20000)); 
-                                                
-                        if(log.isDebugEnabled()){
-                        	log.debug("Merge participant " + local_addr + " got merge request from " + msg.getSrc());
-                        }                                                                                                                                    
                         impl.handleMergeRequest(msg.getSrc(), hdr.merge_id);
                         break;
 
@@ -773,7 +769,7 @@ public class GMS extends Protocol {
                         merge_data.merge_rejected=hdr.merge_rejected;
                         if(log.isDebugEnabled()) {
                             log.debug("Got merge response at " + local_addr + " from " + msg.getSrc() + 
-                                      ", merge_id=" + hdr.view+ ", merge data is "+ merge_data);
+                                      ", merge_id=" + hdr.merge_id + ", merge data is "+ merge_data);
                         } 
                         impl.handleMergeResponse(merge_data, hdr.merge_id);
                         break;
@@ -1051,8 +1047,6 @@ public class GMS extends Protocol {
         view_ack.setFlag(Message.OOB);
         GmsHeader tmphdr=new GmsHeader(GmsHeader.VIEW_ACK);
         view_ack.putHeader(name, tmphdr);
-        if(log.isTraceEnabled())
-            log.trace("sending VIEW_ACK to " + dest);
         down_prot.down(new Event(Event.MSG, view_ack));
     }
 
@@ -1148,8 +1142,8 @@ public class GMS extends Protocol {
                     break;
 
                 case MERGE_RSP:
-                    sb.append(": view=" + view + ", digest=" + my_digest + ", merge_rejected=" + merge_rejected +
-                            ", merge_id=" + merge_id);
+                    sb.append(": view=" + view + ", digest=" + my_digest + ", merge_id=" + merge_id);
+                    if(merge_rejected) sb.append(", merge_rejected=" + merge_rejected);
                     break;
 
                 case INSTALL_MERGE_VIEW:
@@ -1267,7 +1261,7 @@ public class GMS extends Protocol {
     /**
      * Class which processes JOIN, LEAVE and MERGE requests. Requests are queued and processed in FIFO order
      * @author Bela Ban
-     * @version $Id: GMS.java,v 1.126.2.20.2.1 2009/04/06 11:47:10 belaban Exp $
+     * @version $Id: GMS.java,v 1.126.2.20.2.2 2009/04/07 09:55:12 belaban Exp $
      */
     class ViewHandler implements Runnable {
         volatile Thread                    thread;
@@ -1337,19 +1331,11 @@ public class GMS extends Protocol {
                 q.clear();
                 waitUntilCompleted(MAX_COMPLETION_TIME);
                 q.close(true);
-                
-                if(log.isDebugEnabled())
-                    log.debug("suspended ViewHandler at " + local_addr);
                 Resumer resumer=new Resumer(merge_id, resume_tasks, this);
                 Future<?> future=timer.schedule(resumer, resume_task_timeout, TimeUnit.MILLISECONDS);
                 Future<?> old_future=resume_tasks.put(merge_id, future);
                 if(old_future != null)
                     old_future.cancel(true);
-            }
-            else {
-                if(log.isWarnEnabled()) {
-                    log.warn("attempted suspend on ViewHandler at  " + local_addr+ ", however, it is already suspended");
-                }
             }
         }
 
@@ -1368,10 +1354,6 @@ public class GMS extends Protocol {
                         }
                     }
                 }
-                else{
-                    if(log.isWarnEnabled())
-                        log.warn("resume(" + merge_id+ ") does not match "+ this.merge_id);                   
-                }                
                 resumeForce();
             }            
         }
@@ -1380,8 +1362,6 @@ public class GMS extends Protocol {
             if(q.closed())
                 q.reset();
             suspended=false;
-            if(log.isTraceEnabled())
-                log.trace("resumed ViewHandler");
         }
 
         public void run() {
@@ -1450,8 +1430,6 @@ public class GMS extends Protocol {
         private void process(List<Request> requests) {
             if(requests.isEmpty())
                 return;
-            if(log.isTraceEnabled())
-                log.trace("processing " + requests);
             Request firstReq=requests.get(0);
             switch(firstReq.type) {
                 case Request.JOIN:
