@@ -13,7 +13,7 @@ import java.util.*;
  * Tests overlapping merges, e.g. A: {A,B}, B: {A,B} and C: {A,B,C}. Tests unicast as well as multicast seqno tables.<br/>
  * Related JIRA: https://jira.jboss.org/jira/browse/JGRP-940
  * @author Bela Ban
- * @version $Id: OverlappingMergeTest.java,v 1.1.2.8 2009/04/06 12:15:16 belaban Exp $
+ * @version $Id: OverlappingMergeTest.java,v 1.1.2.9 2009/04/07 08:01:45 belaban Exp $
  */
 public class OverlappingMergeTest extends ChannelTestBase {
     private JChannel a, b, c;
@@ -66,6 +66,7 @@ public class OverlappingMergeTest extends ChannelTestBase {
 
         // Inject view {B,C} into B and C:
         View new_view=Util.createView(b.getLocalAddress(), 10, b.getLocalAddress(), c.getLocalAddress());
+        System.out.println("\n ==== Injecting view " + new_view + " into B and C ====");
         injectView(new_view, b, c);
 
         System.out.println("A's view: " + a.getView());
@@ -75,19 +76,18 @@ public class OverlappingMergeTest extends ChannelTestBase {
         assertEquals("B's view is " + b.getView(), 2, b.getView().size());
         assertEquals("C's view is " + c.getView(), 2, c.getView().size());
 
-        System.out.println("sending messages while the cluster is partitioned");
+        System.out.println("\n==== Sending messages while the cluster is partitioned ====");
         sendAndCheckMessages(5, a, b, c);
 
-        // resume merging
-        System.out.println("Merging started");
+        // start merging
         Vector<Address> coords=new Vector<Address>(2);
         coords.add(a.getLocalAddress()); coords.add(b.getLocalAddress());
         Event merge_evt=new Event(Event.MERGE, coords);
-
         JChannel merge_leader=determineMergeLeader(a, b);
+        System.out.println("\n==== Starting the merge (leader=" + merge_leader.getLocalAddress() + ") ====");
         injectMergeEvent(merge_evt, merge_leader);
 
-        System.out.println("checking views after merge:");
+        System.out.println("\n==== checking views after merge ====:");
         for(int i=0; i < 20; i++) {
             if(a.getView().size() == 3 && b.getView().size() == 3 && c.getView().size() == 3) {
                 System.out.println("views are correct: all views have a size of 3");
@@ -110,7 +110,7 @@ public class OverlappingMergeTest extends ChannelTestBase {
         System.out.println("Sending messages after merge");
         sendAndCheckMessages(5, a, b, c);
         Util.sleep(1000); // sleep a little to make sure async msgs have been received
-        checkReceivedMessages(15, 15, ra, rb, rc);
+        checkReceivedMessages(5, ra, rb, rc);
     }
 
     private static JChannel determineMergeLeader(JChannel ... coords) {
@@ -175,26 +175,42 @@ public class OverlappingMergeTest extends ChannelTestBase {
                 }
             }
         }
-        Util.sleep(1000);
-        int total_msgs=num_msgs * channels.length;
+        Util.sleep(2000);
         MyReceiver[] receivers=new MyReceiver[channels.length];
         for(int i=0; i < channels.length; i++)
             receivers[i]=(MyReceiver)channels[i].getReceiver();
-        checkReceivedMessages(total_msgs, total_msgs, receivers);
+        checkReceivedMessages(num_msgs, receivers);
     }
     
 
-    private static void checkReceivedMessages(int num_mcasts, int num_ucasts, MyReceiver ... receivers) {
+    private static void checkReceivedMessages(int num_msgs, MyReceiver ... receivers) {
         for(MyReceiver receiver: receivers) {
             List<Message> mcasts=receiver.getMulticasts();
             List<Message> ucasts=receiver.getUnicasts();
             int mcasts_received=mcasts.size();
             int ucasts_received=ucasts.size();
             System.out.println("receiver " + receiver + ": mcasts=" + mcasts_received + ", ucasts=" + ucasts_received);
-            assert mcasts_received == num_mcasts : "mcasts: " + mcasts;
-            assert ucasts_received == num_ucasts : "ucasts: " + ucasts;
+        }
+        int total_unicasts=receivers.length * num_msgs;
+        for(MyReceiver receiver: receivers) {
+            List<Message> mcasts=receiver.getMulticasts();
+            List<Message> ucasts=receiver.getUnicasts();
+            int mcasts_received=mcasts.size();
+            int ucasts_received=ucasts.size();
+            int total_mcasts=receiver.view.size() * num_msgs;
+            assertEquals("ucasts: " + print(ucasts), total_unicasts, ucasts_received);
+            assertEquals("num_mcasts=" + print(mcasts), total_mcasts, mcasts_received);
         }
     }
+
+    private static String print(List<Message> msgs) {
+        StringBuilder sb=new StringBuilder();
+        for(Message msg: msgs) {
+            sb.append(msg.getSrc()).append(": ").append(msg.getObject()).append(" ");
+        }
+        return sb.toString();
+    }
+
 
     private static void modifyConfigs(JChannel ... channels) throws Exception {
         for(JChannel ch: channels) {
@@ -218,6 +234,7 @@ public class OverlappingMergeTest extends ChannelTestBase {
 
     private static class MyReceiver extends ReceiverAdapter {
         final String name;
+        View view=null;
         final List<Message> mcasts=new ArrayList<Message>(20);
         final List<Message> ucasts=new ArrayList<Message>(20);
 
@@ -236,7 +253,8 @@ public class OverlappingMergeTest extends ChannelTestBase {
         }
 
         public void viewAccepted(View new_view) {
-            System.out.println("[" + name + "] " + new_view);
+            // System.out.println("[" + name + "] " + new_view);
+            view=new_view;
         }
 
         public List<Message> getMulticasts() { return mcasts; }
