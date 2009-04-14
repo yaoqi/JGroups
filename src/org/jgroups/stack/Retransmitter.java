@@ -1,4 +1,4 @@
-// $Id: Retransmitter.java,v 1.23.2.1 2008/05/21 12:31:37 belaban Exp $
+// $Id: Retransmitter.java,v 1.23.2.1.2.1 2009/04/14 10:36:20 belaban Exp $
 
 package org.jgroups.stack;
 
@@ -28,7 +28,7 @@ import java.util.concurrent.Future;
  * the (previous) message list linearly on removal. Performance is about the same, or slightly better in
  * informal tests.
  * @author Bela Ban
- * @version $Revision: 1.23.2.1 $
+ * @version $Revision: 1.23.2.1.2.1 $
  */
 public class Retransmitter {
 
@@ -100,12 +100,12 @@ public class Retransmitter {
             last_seqno=tmp;
         }
 
-        Task task;
         for(long seqno=first_seqno; seqno <= last_seqno; seqno++) {
             // each task needs its own retransmission interval, as they are stateful *and* mutable, so we *need* to copy !
-            task=new Task(seqno, RETRANSMIT_TIMEOUTS.copy(), cmd, sender);
-            msgs.putIfAbsent(seqno, task);
-            task.doSchedule(timer); // Entry adds itself to the timer
+            Task new_task=new Task(seqno, RETRANSMIT_TIMEOUTS.copy(), cmd, sender);
+            Task old_task=msgs.putIfAbsent(seqno, new_task);
+            if(old_task == null) // only schedule if we actually *added* the new task !
+                new_task.doSchedule(timer); // Entry adds itself to the timer
         }
 
     }
