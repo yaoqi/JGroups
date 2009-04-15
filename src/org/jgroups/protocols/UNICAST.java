@@ -9,6 +9,7 @@ import org.jgroups.stack.StaticInterval;
 import org.jgroups.util.Streamable;
 import org.jgroups.util.TimeScheduler;
 import org.jgroups.util.Util;
+import org.jgroups.util.AgeOutCache;
 
 import java.io.*;
 import java.util.*;
@@ -34,20 +35,17 @@ import java.util.concurrent.locks.ReentrantLock;
  * possible (until we stop at a gap, or there are no more messages).<br/>
  * UNICAST was enhanced in April 2009, the new design is described in doc/design/UNICAST.new.txt
  * @author Bela Ban
- * @version $Id: UNICAST.java,v 1.91.2.14.2.4 2009/04/07 16:51:52 belaban Exp $
+ * @version $Id: UNICAST.java,v 1.91.2.14.2.5 2009/04/15 07:18:43 belaban Exp $
  */
-public class UNICAST extends Protocol implements AckSenderWindow.RetransmitCommand {
+public class UNICAST extends Protocol implements AckSenderWindow.RetransmitCommand, AgeOutCache.Handler<Address> {
     private final Vector<Address> members=new Vector<Address>(11);
-    private final HashMap<Address,Entry> connections=new HashMap<Address,Entry>(11);
+    private final Map<Address,Entry> connections=new HashMap<Address,Entry>(11);
     private long[]                timeouts={400,800,1600,3200};  // for AckSenderWindow: max time to wait for missing acks
     private Address               local_addr=null;
     private TimeScheduler         timer=null;                    // used for retransmissions (passed to AckSenderWindow)
     private Map<Thread,ReentrantLock> locks;
 
     private boolean          started=false;
-
-    // ack a message before it is processed by the application to limit unnecessary retransmits
-    private boolean          immediate_ack=false;
 
     /** whether to loop back messages sent to self (will be removed in the future, default=false) */
     private boolean          loopback=false;
@@ -60,6 +58,14 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
      * might get delivered concurrently. This can be turned off by setting eager_lock_release to false.
      */
     private boolean eager_lock_release=true;
+
+    /**
+     * Max number of milliseconds we try to retransmit messages to any given member. After that time, the
+     * connection is removed. Any new connection to that member will start with seqno #1 again. 0 disables this.
+     */
+    private long max_retransmit_time=60 * 1000L;
+
+    private AgeOutCache<Address> cache=null;
 
 
     private final static String name="UNICAST";
@@ -115,6 +121,28 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
 
     public long getNumberOfRetransmitRequestsReceived() {
         return num_xmit_requests_received;
+    }
+
+    public long getMaxRetransmitTime() {
+        return max_retransmit_time;
+    }
+
+    public void setMaxRetransmitTime(long max_retransmit_time) {
+        this.max_retransmit_time=max_retransmit_time;
+        if(cache != null && max_retransmit_time > 0)
+            cache.setTimeout(max_retransmit_time);
+    }
+
+    public int getAgeOutCacheSize() {
+        return cache != null? cache.size() : 0;
+    }
+
+    public String printAgeOutCache() {
+        return cache != null? cache.toString() : "n/a";
+    }
+
+    public AgeOutCache getAgeOutCache() {
+        return cache;
     }
 
     /** The number of messages in all Entry.sent_msgs tables (haven't received an ACK yet) */
@@ -204,6 +232,12 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
             log.warn("min_threshold is deprecated and will be ignored");
         }
 
+        str=props.getProperty("max_retransmit_time");
+        if(str != null) {
+            max_retransmit_time=Long.parseLong(str);
+            props.remove("max_retransmit_time");
+        }
+
         str=props.getProperty("use_gms");
         if(str != null) {
             log.warn("use_gms has been deprecated and will be ignored");
@@ -212,7 +246,7 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
 
         str=props.getProperty("immediate_ack");
         if(str != null) {
-        	immediate_ack=Boolean.valueOf(str).booleanValue();
+            log.warn("immediate_ack has been deprecated and will be ignored");
             props.remove("immediate_ack");
         }
 
@@ -240,6 +274,8 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
         if(timer == null)
             throw new Exception("timer is null");
         locks=stack.getLocks();
+        if(max_retransmit_time > 0)
+            cache=new AgeOutCache(timer, max_retransmit_time, this);
         started=true;
     }
 
@@ -272,10 +308,7 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
             src=msg.getSrc();
             switch(hdr.type) {
             case UnicastHeader.DATA:      // received regular message
-                // only send an ACK if added to the received_msgs table (bela Aug 2006)
-                // if in immediate_ack mode, send ack inside handleDataReceived
-            	if(handleDataReceived(src, hdr.seqno, hdr.conn_id, msg) && !immediate_ack)
-                    sendAck(src, hdr.seqno);
+                handleDataReceived(src, hdr.seqno, hdr.conn_id, msg);
                 return null; // we pass the deliverable message up in handleDataReceived()
             case UnicastHeader.ACK:  // received ACK for previously sent message
                 handleAckReceived(src, hdr.seqno);
@@ -334,6 +367,8 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
                         connections.put(dst, entry);
                         if(log.isTraceEnabled())
                             log.trace(local_addr + ": created new connection for dst " + dst);
+                        if(cache != null && !members.contains(dst))
+                            cache.add(dst);
                     }
                 }
 
@@ -394,6 +429,9 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
                     if(new_members != null)
                         members.addAll(new_members);
                     non_members.removeAll(members);
+                    if(cache != null) {
+                        cache.removeAll(members);
+                    }
                 }
 
                 if(!non_members.isEmpty()) {
@@ -450,7 +488,17 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
         num_xmit_requests_received++;
     }
 
-
+    /**
+     * Called by AgeOutCache, to removed expired connections
+     * @param key
+     */
+    public void expired(Address key) {
+        if(key != null) {
+            if(log.isDebugEnabled())
+                log.debug("removing connection to " + key + " because it expired");
+            removeConnection(key);
+        }
+    }
 
 
 
@@ -458,9 +506,8 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
      * Check whether the hashtable contains an entry e for <code>sender</code> (create if not). If
      * e.received_msgs is null and <code>first</code> is true: create a new AckReceiverWindow(seqno) and
      * add message. Set e.received_msgs to the new window. Else just add the message.
-     * @return boolean True if we can send an ack, false otherwise
      */
-    private boolean handleDataReceived(Address sender, long seqno, long conn_id, Message msg) {
+    private void handleDataReceived(Address sender, long seqno, long conn_id, Message msg) {
         if(log.isTraceEnabled()) {
             StringBuilder sb=new StringBuilder();
             sb.append(local_addr).append(" <-- DATA(").append(sender).append(": #").append(seqno);
@@ -476,7 +523,7 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
             if(conn_id == 0) {
                 if(win == null) {
                     sendRequestForFirstSeqno(sender);
-                    return false; // no ack sent back
+                    return;
                 }
             }
             else { // conn_id != 0
@@ -490,7 +537,7 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
                         win=createReceiverWindow(sender, entry, seqno, conn_id);
                     }
                     else
-                        return false; // no ack is sent back, duplicate connection establishment message
+                        return;
                 }
             }
         }
@@ -500,23 +547,24 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
         num_msgs_received++;
         num_bytes_received+=msg.getLength();
 
-        // http://jira.jboss.com/jira/browse/JGRP-713: // send the ack back *before* we process the message
-        // to limit unnecessary retransmits
-        if(immediate_ack)
-            sendAck(sender, seqno); // send an ack regardless of whether the message was added (stops retransmission)
+        if(win.smallerThanNextToRemove(seqno))
+            sendAck(msg.getSrc(), seqno);
 
         // message is passed up if OOB. Later, when remove() is called, we discard it. This affects ordering !
         // http://jira.jboss.com/jira/browse/JGRP-377
         if(msg.isFlagSet(Message.OOB)) {
             if(added)
                 up_prot.up(new Event(Event.MSG, msg));
-            win.removeOOBMessage(); // if we only have OOB messages, we'd never remove them !
+            Message oob_msg=win.removeOOBMessage();
+            if(oob_msg != null)
+                sendAckForMessage(oob_msg);
+            
             if(!(win.hasMessagesToRemove() && undelivered_msgs.get() > 0))
-                return true;
+                return;
         }
 
         if(!added && !win.hasMessagesToRemove()) { // no ack if we didn't add the msg (e.g. duplicate)
-            return true; // ack the message, because this will stop retransmissions (which are unreliable) !
+            return;
         }
 
 
@@ -541,6 +589,7 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
                     continue;
                 }
                 removed_regular_msgs++;
+                sendAckForMessage(m);
                 up_prot.up(new Event(Event.MSG, m));
             }
         }
@@ -561,7 +610,6 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
                 undelivered_msgs.addAndGet(-(removed_regular_msgs -num_msgs_added));
             }
         }
-        return true; // msg was successfully received - send an ack back to the sender
     }
 
 
@@ -638,6 +686,14 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
     }
 
 
+    private void sendAckForMessage(Message msg) {
+        UnicastHeader hdr=msg != null? (UnicastHeader)msg.getHeader(name) : null;
+        Address sender=msg != null? msg.getSrc() : null;
+        if(hdr != null && sender != null) {
+            sendAck(sender, hdr.seqno);
+        }
+    }
+
     private long getNewConnectionId() {
         long retval=System.currentTimeMillis();
         synchronized(this) {
@@ -657,6 +713,8 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
             log.trace("SEND_FIRST_SEQNO --> " + dest);
         down_prot.down(new Event(Event.MSG, msg));
     }
+
+
 
 
     public static class UnicastHeader extends Header implements Streamable {
@@ -766,6 +824,8 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
             return sb.toString();
         }
     }
+
+
 
 
 }

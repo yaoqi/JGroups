@@ -1,4 +1,4 @@
-// $Id: AckSenderWindow.java,v 1.27.4.1 2009/04/03 07:35:40 belaban Exp $
+// $Id: AckSenderWindow.java,v 1.27.4.2 2009/04/15 07:18:42 belaban Exp $
 
 package org.jgroups.stack;
 
@@ -12,6 +12,7 @@ import org.jgroups.util.Util;
 
 import java.util.TreeSet;
 import java.util.Collections;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -31,6 +32,7 @@ public class AckSenderWindow implements Retransmitter.RetransmitCommand {
     Interval                interval=new StaticInterval(400,800,1200,1600);
     final Retransmitter     retransmitter;
     static final Log        log=LogFactory.getLog(AckSenderWindow.class);
+    long                    lowest=0; // lowest seqno, used by ack()
 
 
     public interface RetransmitCommand {
@@ -78,19 +80,14 @@ public class AckSenderWindow implements Retransmitter.RetransmitCommand {
 
     public void reset() {
         msgs.clear();
-
-        // moved out of sync scope: Retransmitter.reset()/add()/remove() are sync'ed anyway
-        // Bela Jan 15 2003
         retransmitter.reset();
     }
 
 
     /**
      * Adds a new message to the retransmission table. If the message won't have received an ack within
-     * a certain time frame, the retransmission thread will retransmit the message to the receiver. If
-     * a sliding window protocol is used, we only add up to <code>window_size</code> messages. If the table is
-     * full, we add all new messages to a queue. Those will only be added once the table drains below a certain
-     * threshold (<code>min_threshold</code>)
+     * a certain time frame, the retransmission thread will retransmit the message to the receiver. A message will
+     * be retransmitted until an ack for it is received, or the destination member is excluded from the group
      */
     public void add(long seqno, Message msg) {
         msgs.putIfAbsent(seqno, msg);
@@ -99,21 +96,31 @@ public class AckSenderWindow implements Retransmitter.RetransmitCommand {
 
 
     /**
-     * Removes the message from <code>msgs</code>, removing them also from retransmission. If
-     * sliding window protocol is used, and was queueing, check whether we can resume adding elements.
-     * Add all elements. If this goes above window_size, stop adding and back to queueing. Else
-     * set queueing to false.
+     * Removes all messages <em>less than or equal</em> to seqno from <code>msgs</code>, and cancels their retransmission.
      */
-    public void ack(long seqno) {
-        msgs.remove(new Long(seqno));
-        retransmitter.remove(seqno);
+    public synchronized void ack(long seqno) {
+        if(lowest == 0) {
+            Long tmp=getLowestSeqno();
+            if(tmp != null)
+                lowest=tmp;
+        }
+
+        for(long i=lowest; i <= seqno; i++) {
+            msgs.remove(i);
+            retransmitter.remove(i);
+        }
+        lowest=seqno +1;
     }
 
     /** Returns the message with the lowest seqno */
     public Message getLowestMessage() {
-        Long seqno=Collections.min(msgs.keySet());
+        Set<Long> keys=msgs.keySet();
+        if(keys.isEmpty())
+            return null;
+        Long seqno=Collections.min(keys);
         return seqno != null? msgs.get(seqno) : null;
     }
+
 
     public int size() {
         return msgs.size();
@@ -157,11 +164,10 @@ public class AckSenderWindow implements Retransmitter.RetransmitCommand {
 
 
 
-
-
-    /* ---------------------------------- Private methods --------------------------------------- */
-
-    /* ------------------------------ End of Private methods ------------------------------------ */
+    public Long getLowestSeqno() {
+        Set<Long> keys=msgs.keySet();
+        return keys != null? Collections.min(keys) : null;
+    }
 
 
 

@@ -1,18 +1,16 @@
 package org.jgroups.util;
 
-import org.apache.commons.logging.Log;
-
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.*;
 
 /** Cache which removes its elements after a certain time
  * @author Bela Ban
- * @version $Id: AgeOutCache.java,v 1.1.2.1 2009/04/15 06:11:23 belaban Exp $
+ * @version $Id: AgeOutCache.java,v 1.1.2.2 2009/04/15 07:18:47 belaban Exp $
  */
 public class AgeOutCache<K> {
     private final ScheduledExecutorService timer;
-    private final long TIMEOUT;
+    private long timeout;
     private final ConcurrentMap<K,ScheduledFuture> map=new ConcurrentHashMap<K,ScheduledFuture>();
     private Handler handler=null;
 
@@ -23,7 +21,7 @@ public class AgeOutCache<K> {
 
     public AgeOutCache(ScheduledExecutorService timer, long timeout) {
         this.timer=timer;
-        TIMEOUT=timeout;
+        this.timeout=timeout;
     }
 
     public AgeOutCache(ScheduledExecutorService timer, long timeout, Handler handler) {
@@ -31,6 +29,13 @@ public class AgeOutCache<K> {
         this.handler=handler;
     }
 
+    public long getTimeout() {
+        return timeout;
+    }
+
+    public void setTimeout(long timeout) {
+        this.timeout=timeout;
+    }
 
     public Handler getHandler() {
         return handler;
@@ -53,7 +58,7 @@ public class AgeOutCache<K> {
                 ScheduledFuture tmp=map.remove(key);
                 tmp.cancel(true);
             }
-        }, TIMEOUT, TimeUnit.MILLISECONDS);
+        }, timeout, TimeUnit.MILLISECONDS);
         ScheduledFuture result=map.putIfAbsent(key, future);
         if(result != null)
             future.cancel(true);

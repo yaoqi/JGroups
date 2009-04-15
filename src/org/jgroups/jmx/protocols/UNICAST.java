@@ -4,7 +4,7 @@ import org.jgroups.jmx.Protocol;
 
 /**
  * @author Bela Ban
- * @version $Id: UNICAST.java,v 1.8 2007/04/27 11:06:11 belaban Exp $
+ * @version $Id: UNICAST.java,v 1.8.6.1 2009/04/15 07:18:45 belaban Exp $
  */
 public class UNICAST extends Protocol implements UNICASTMBean {
     org.jgroups.protocols.UNICAST p;
@@ -73,6 +73,22 @@ public class UNICAST extends Protocol implements UNICASTMBean {
 
     public int getNumberOfMessagesInReceiveWindows() {
         return p.getNumberOfMessagesInReceiveWindows();
+    }
+
+     public long getMaxRetransmitTime() {
+        return p.getMaxRetransmitTime();
+    }
+
+    public void setMaxRetransmitTime(long max_retransmit_time) {
+        p.setMaxRetransmitTime(max_retransmit_time);
+    }
+
+    public int getAgeOutCacheSize() {
+        return p.getAgeOutCacheSize();
+    }
+
+    public String printAgeOutCache() {
+        return p.printAgeOutCache();
     }
 
 }
