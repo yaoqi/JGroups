@@ -11,11 +11,12 @@ import org.jgroups.util.Util;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 
 /**
  * @author Bela Ban
- * @version $Id: ResponseCollectorTest.java,v 1.1.2.2 2009/04/20 13:00:19 belaban Exp $
+ * @version $Id: ResponseCollectorTest.java,v 1.1.2.3 2009/04/20 13:25:33 belaban Exp $
  */
 public class ResponseCollectorTest extends TestCase {
 
@@ -98,22 +99,42 @@ public class ResponseCollectorTest extends TestCase {
         assertFalse(coll.hasAllResponses());
     }
 
-    public void testWaitForAllResponsesAndStop() {
+    public void testWaitForAllResponsesAndReset() {
         final ResponseCollector<Integer> coll=new ResponseCollector<Integer>(createMembers(3));
 
         new Thread() {
             public void run() {
                 Util.sleep(500);
                 coll.add(new IpAddress(1000), 1);
-                coll.stop();
+                coll.reset();
             }
         }.start();
 
         boolean rc=coll.waitForAllResponses(700);
         System.out.println("coll = " + coll);
-        assertFalse(rc);
-        assertFalse(coll.hasAllResponses());
+        assertTrue(rc);
+        assertTrue(coll.hasAllResponses());
     }
+
+
+    public void testWaitForAllResponsesAndGetResults() throws InterruptedException {
+        final ResponseCollector<Integer> coll=new ResponseCollector<Integer>(createMembers(3));
+
+        coll.add(new IpAddress(1000), 1); coll.add(new IpAddress(2000), 2); coll.add(new IpAddress(3000), 3);
+        Map<Address, Integer> results=coll.getResults();
+        System.out.println("results = " + results);
+
+        Thread thread=new Thread() {
+            public void run() {
+                coll.reset();
+            }
+        }; thread.start();
+
+        thread.join();
+        System.out.println("results = " + results);
+        assertSame(0, coll.size());
+    }
+
 
 
     private static Collection<Address> createMembers(int num) {
