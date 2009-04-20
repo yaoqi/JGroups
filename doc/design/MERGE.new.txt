@@ -3,7 +3,7 @@ New merging algorithm
 =====================
 
 Author: Bela Ban
-Version: $Id: MERGE.new.txt,v 1.1.2.4 2009/04/20 07:39:52 belaban Exp $
+Version: $Id: MERGE.new.txt,v 1.1.2.5 2009/04/20 10:42:04 belaban Exp $
 JIRAs: https://jira.jboss.org/jira/browse/JGRP-948, https://jira.jboss.org/jira/browse/JGRP-940
 
 Goal
@@ -61,7 +61,7 @@ Merging of local digests (NAKACK.mergeDigest())
  ================
 
 ==> We currently do NOT overwrite our own digest entry, but overwrite all others. This is incorrect: we need to
-    not overwrite our own digest (as is done currently), but for all others members P, we need to:
+    not overwrite our own digest (as is done currently), but for all other members P, we need to:
     - If P's seqno is higher than the one in the digest: don't overwrite
     - Else: reset P's NakReceiverWindow and overwrite it with the new seqno
 
