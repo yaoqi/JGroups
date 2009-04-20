@@ -3,22 +3,19 @@ package org.jgroups.tests;
 
 
 import junit.framework.TestCase;
-import org.jgroups.util.AckCollector;
-import org.jgroups.util.Util;
-import org.jgroups.util.ResponseCollector;
-import org.jgroups.TimeoutException;
 import org.jgroups.Address;
 import org.jgroups.stack.IpAddress;
+import org.jgroups.util.ResponseCollector;
+import org.jgroups.util.Util;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Collection;
-import java.net.UnknownHostException;
+import java.util.List;
 
 
 /**
  * @author Bela Ban
- * @version $Id: ResponseCollectorTest.java,v 1.1.2.1 2009/04/20 12:51:16 belaban Exp $
+ * @version $Id: ResponseCollectorTest.java,v 1.1.2.2 2009/04/20 13:00:19 belaban Exp $
  */
 public class ResponseCollectorTest extends TestCase {
 
@@ -96,6 +93,23 @@ public class ResponseCollectorTest extends TestCase {
         }.start();
 
         boolean rc=coll.waitForAllResponses(400);
+        System.out.println("coll = " + coll);
+        assertFalse(rc);
+        assertFalse(coll.hasAllResponses());
+    }
+
+    public void testWaitForAllResponsesAndStop() {
+        final ResponseCollector<Integer> coll=new ResponseCollector<Integer>(createMembers(3));
+
+        new Thread() {
+            public void run() {
+                Util.sleep(500);
+                coll.add(new IpAddress(1000), 1);
+                coll.stop();
+            }
+        }.start();
+
+        boolean rc=coll.waitForAllResponses(700);
         System.out.println("coll = " + coll);
         assertFalse(rc);
         assertFalse(coll.hasAllResponses());

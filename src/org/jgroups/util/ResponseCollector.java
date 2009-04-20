@@ -15,13 +15,14 @@ import java.util.concurrent.TimeUnit;
 /** Similar to AckCollector, but collects responses, not just acks. Note that, once done, the object cannot be
  * reused, but a new instance should be created. Null is not a valid key.
  * @author Bela Ban
- * @version $Id: ResponseCollector.java,v 1.1.2.1 2009/04/20 12:51:18 belaban Exp $
+ * @version $Id: ResponseCollector.java,v 1.1.2.2 2009/04/20 13:00:17 belaban Exp $
  */
 public class ResponseCollector<T> {
     @GuardedBy("lock")
     private final Map<Address,T> responses;
     private final Lock lock=new ReentrantLock(false);
     private final Condition cond=lock.newCondition();
+    private volatile boolean stopped=false;
 
 
     /**
@@ -37,7 +38,7 @@ public class ResponseCollector<T> {
     }
 
     public void add(Address member, T data) {
-        if(member == null)
+        if(member == null || stopped)
             return;
         lock.lock();
         try {
@@ -52,7 +53,7 @@ public class ResponseCollector<T> {
     }
 
     public void suspect(Address member) {
-        if(member == null)
+        if(member == null || stopped)
             return;
         lock.lock();
         try {
@@ -65,6 +66,7 @@ public class ResponseCollector<T> {
     }
 
     public boolean hasAllResponses() {
+        if(stopped) return false;
         lock.lock();
         try {
             for(Map.Entry<Address,T> entry: responses.entrySet()) {
@@ -107,7 +109,7 @@ public class ResponseCollector<T> {
 
         lock.lock();
         try {
-            while(!hasAllResponses()) {
+            while(!hasAllResponses() && !stopped) {
                 wait_time=end_time - System.currentTimeMillis();
                 if(wait_time <= 0)
                     return false;
@@ -119,7 +121,7 @@ public class ResponseCollector<T> {
                     return false;
                 }
             }
-            return true;
+            return !stopped;
         }
         finally {
             lock.unlock();
@@ -129,6 +131,7 @@ public class ResponseCollector<T> {
     public void stop() {
         lock.lock();
         try {
+            stopped=true;
             responses.clear();
             cond.signalAll();
         }
