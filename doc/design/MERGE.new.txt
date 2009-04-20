@@ -3,7 +3,7 @@ New merging algorithm
 =====================
 
 Author: Bela Ban
-Version: $Id: MERGE.new.txt,v 1.1.2.2 2009/04/16 08:16:40 belaban Exp $
+Version: $Id: MERGE.new.txt,v 1.1.2.3 2009/04/20 06:07:21 belaban Exp $
 JIRAs: https://jira.jboss.org/jira/browse/JGRP-948, https://jira.jboss.org/jira/browse/JGRP-940
 
 Goal
@@ -15,7 +15,7 @@ Design
 ------
 On a merge, the merge leader sends a MERGE_REQ to all subpartition coordinators (in the example, this would be A and D).
 
-On reception of a MERGE-REQ, every coordinator multicasts a GET_DIGEST to its subpartition and waits N ms for all
+On reception of a MERGE_REQ, every coordinator multicasts a GET_DIGEST to its subpartition and waits N ms for all
 replies. Example: D wait for replies from itself, E and F. It returns the aggregated information for D, E and F after N
 milliseconds.
 
@@ -24,7 +24,7 @@ After reception of responses from itself and D, it makes sure it has digests for
 it cancels the merge.
 
 Otherwise, A computes a MergeView and consolidates the digests, then unicasts the MERGE_VIEW to itself and D. Each
-coordinator then multicasts the new view in its subpartition.
+coordinator then multicasts the new view in its subpartition (same as now).
 
 Consolidating the digests should be simple because we only have 1 entry for each member. However, in the following
 case we could have multiple overlapping entries:
