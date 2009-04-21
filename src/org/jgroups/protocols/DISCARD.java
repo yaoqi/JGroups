@@ -1,4 +1,4 @@
-// $Id: DISCARD.java,v 1.17.2.3.2.1 2009/03/31 16:34:15 belaban Exp $
+// $Id: DISCARD.java,v 1.17.2.3.2.2 2009/04/21 10:02:26 belaban Exp $
 
 package org.jgroups.protocols;
 
@@ -399,9 +399,6 @@ public class DISCARD extends Protocol {
 
 
             Component[] comps=panel.getComponents();
-            for(Component c: comps) {
-                System.out.println("c = " + c);
-            }
         }
 
 
