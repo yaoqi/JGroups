@@ -1,4 +1,4 @@
-// $Id: CoordGmsImpl.java,v 1.82.2.16.2.4 2009/04/07 16:20:26 belaban Exp $
+// $Id: CoordGmsImpl.java,v 1.82.2.16.2.5 2009/04/21 09:43:09 belaban Exp $
 
 package org.jgroups.protocols.pbcast;
 
@@ -7,6 +7,7 @@ import org.jgroups.*;
 import org.jgroups.annotations.GuardedBy;
 import org.jgroups.util.Digest;
 import org.jgroups.util.MutableDigest;
+import org.jgroups.util.ResponseCollector;
 
 import java.util.*;
 import java.util.concurrent.Future;
@@ -23,12 +24,17 @@ import java.util.concurrent.locks.ReentrantLock;
 public class CoordGmsImpl extends GmsImpl {
     private volatile boolean        merging=false;
     private final MergeTask         merge_task=new MergeTask();
+
+    /** For MERGE_REQ/MERGE_RSP correlation, contains MergeData elements */
     private final Vector<MergeData> merge_rsps=new Vector<MergeData>(11);
-    // for MERGE_REQ/MERGE_RSP correlation, contains MergeData elements
+
+    /** For GET_DIGEST / DIGEST_RSP correlation */
+    private final ResponseCollector<MergeData> digest_collector=new ResponseCollector<MergeData>();
+
     private ViewId                  merge_id=null;
 
     @GuardedBy("merge_canceller_lock")
-    private Future<?>                  merge_canceller_future=null;
+    private Future<?>               merge_canceller_future=null;
 
     private final Lock              merge_canceller_lock=new ReentrantLock();
 
