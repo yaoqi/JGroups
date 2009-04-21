@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 
 /** Similar to AckCollector, but collects responses, not just acks. Null is not a valid key.
  * @author Bela Ban
- * @version $Id: ResponseCollector.java,v 1.1.2.4 2009/04/21 09:43:10 belaban Exp $
+ * @version $Id: ResponseCollector.java,v 1.1.2.5 2009/04/21 10:09:22 belaban Exp $
  */
 public class ResponseCollector<T> {
     @GuardedBy("lock")
@@ -45,6 +45,19 @@ public class ResponseCollector<T> {
                 responses.put(member, data);
                 cond.signalAll();
             }
+        }
+        finally {
+            lock.unlock();
+        }
+    }
+
+    public void remove(Address member) {
+        if(member == null)
+            return;
+        lock.lock();
+        try {
+            responses.remove(member);
+            cond.signalAll();
         }
         finally {
             lock.unlock();
