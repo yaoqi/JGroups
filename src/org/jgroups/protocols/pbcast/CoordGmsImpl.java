@@ -1,4 +1,4 @@
-// $Id: CoordGmsImpl.java,v 1.82.2.16.2.6 2009/04/21 10:09:21 belaban Exp $
+// $Id: CoordGmsImpl.java,v 1.82.2.16.2.7 2009/04/22 06:58:42 belaban Exp $
 
 package org.jgroups.protocols.pbcast;
 
@@ -29,7 +29,7 @@ public class CoordGmsImpl extends GmsImpl {
     private final ResponseCollector<MergeData> merge_rsps=new ResponseCollector<MergeData>();
 
     /** For GET_DIGEST / DIGEST_RSP correlation */
-    private final ResponseCollector<MergeData> digest_collector=new ResponseCollector<MergeData>();
+    private final ResponseCollector<Digest> digest_collector=new ResponseCollector<Digest>();
 
     private ViewId                  merge_id=null;
 
@@ -200,44 +200,45 @@ public class CoordGmsImpl extends GmsImpl {
         //[JGRP-700] - FLUSH: flushing should span merge
         
         /*if flush is in stack, let this coordinator flush its cluster island */
-        boolean suceesfulFlush = gms.startFlush(view);
-        if(suceesfulFlush) {
-            digest=gms.getDigest();
-            sendMergeResponse(sender, view, digest);
-        }
-        else {
+        boolean successfulFlush = gms.startFlush(view);
+        if(!successfulFlush) {
             sendMergeRejectedResponse(sender, merge_id);
             gms.getViewHandler().resume(merge_id);
             merging=false;
             if(log.isWarnEnabled())
                 log.warn("Since flush failed at " + gms.local_addr + " rejected merge to "+ sender+ ", merge_id="+ merge_id);
+            return;
         }
+
+        // digest=gms.getDigest();
+        digest=fetchDigestsFromAllMembersInSubPartition();
+        sendMergeResponse(sender, view, digest);
     }
+
+
 
     public void handleMergeResponse(MergeData data, ViewId merge_id) {                     
     	if(merge_id == null || this.merge_id == null) {
             if(log.isErrorEnabled())
-                log.error("merge_id ("
-                    + merge_id
-                    + ") or this.merge_id ("
-                    + this.merge_id
-                    + ") is null (sender="
-                    + data.getSender()
-                    + ").");
+                log.error("merge_id (" + merge_id + ") or this.merge_id (" + this.merge_id +
+                        ") is null (sender=" + data.getSender() + ")");
             return;
         }
 
         if(!this.merge_id.equals(merge_id)) {
-            if(log.isErrorEnabled()) log.error("this.merge_id ("
-                    + this.merge_id
-                    + ") is different from merge_id ("
-                    + merge_id
-                    + ')');
+            if(log.isErrorEnabled())
+                log.error("this.merge_id (" + this.merge_id + ") is different from merge_id (" + merge_id + ')');
             return;
         }
 
         merge_rsps.add(data.getSender(), data);
     }
+
+
+    public void handleDigestResponse(Address sender, Digest digest) {
+        digest_collector.add(sender, digest);
+    }
+
 
     /**
      * If merge_id is not equal to this.merge_id then discard.
@@ -296,6 +297,31 @@ public class CoordGmsImpl extends GmsImpl {
         }
     }
 
+    /**
+     * Multicasts a GET_DIGEST_REQ to all current members and waits for all responses (GET_DIGEST_RSP) or N ms.
+     * @return
+     */
+    private Digest fetchDigestsFromAllMembersInSubPartition() {
+        Collection current_mbrs=gms.view != null? new ArrayList<Address>(gms.view.getMembers()) : null;
+        if(current_mbrs == null)
+            return null;
+
+        GMS.GmsHeader hdr=new GMS.GmsHeader(GMS.GmsHeader.GET_DIGEST_REQ);
+        Message get_digest_req=new Message();
+        get_digest_req.putHeader(gms.getName(), hdr);
+
+        long max_wait_time=gms.merge_timeout > 0? (long)(gms.merge_timeout * 0.8) : 3000L;
+        digest_collector.reset(current_mbrs);
+        gms.getDownProtocol().down(new Event(Event.MSG, get_digest_req));
+        digest_collector.waitForAllResponses(max_wait_time);
+        Map<Address,Digest> responses=new HashMap<Address,Digest>(digest_collector.getResults());
+        MutableDigest retval=new MutableDigest(responses.size());
+        for(Digest digest: responses.values()) {
+            if(digest != null)
+                retval.add(digest);
+        }
+        return retval;
+    }
 
     private void cancelMerge() {
         Object tmp=merge_id;
