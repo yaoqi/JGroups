@@ -21,7 +21,7 @@ import org.jgroups.protocols.pbcast.GmsImpl.Request;
  * accordingly. Use VIEW_ENFORCER on top of this layer to make sure new members don't receive
  * any messages until they are members
  * @author Bela Ban
- * @version $Id: GMS.java,v 1.126.2.20.2.2 2009/04/07 09:55:12 belaban Exp $
+ * @version $Id: GMS.java,v 1.126.2.20.2.3 2009/04/22 06:57:51 belaban Exp $
  */
 public class GMS extends Protocol {
     private GmsImpl           impl=null;
@@ -789,6 +789,28 @@ public class GMS extends Protocol {
                         impl.handleMergeCancelled(hdr.merge_id);
                         down_prot.down(new Event(Event.RESUME_STABLE));
                         break;
+                    case GmsHeader.GET_DIGEST_REQ:
+                        Digest digest=(Digest)down_prot.down(Event.GET_DIGEST_EVT);
+                        if(digest != null) {
+                            Digest.Entry entry=digest.get(local_addr);
+                            if(entry != null) {
+                                // only return my own digest information, but nobody else's !
+                                // https://jira.jboss.org/jira/browse/JGRP-948
+                                Digest retval=new Digest(local_addr, entry.getLow(), entry.getHighestDeliveredSeqno(),
+                                                         entry.getHighestReceivedSeqno());
+                                GmsHeader rsp_hdr=new GmsHeader(GmsHeader.GET_DIGEST_RSP);
+                                rsp_hdr.my_digest=retval;
+                                Message get_digest_rsp=new Message(msg.getSrc(), null, null);
+                                get_digest_rsp.putHeader(name, rsp_hdr);
+                                down_prot.down(new Event(Event.MSG, get_digest_rsp));
+                            }
+                        }
+                        break;
+
+                    case GmsHeader.GET_DIGEST_RSP:
+                        Digest digest_rsp=hdr.my_digest;
+                        impl.handleDigestResponse(msg.getSrc(), digest_rsp);
+                        break;
 
                     default:
                         if(log.isErrorEnabled()) log.error("GmsHeader with type=" + hdr.type + " not known");
@@ -1067,6 +1089,9 @@ public class GMS extends Protocol {
         public static final byte VIEW_ACK=10;
         public static final byte JOIN_REQ_WITH_STATE_TRANSFER = 11;
         public static final byte INSTALL_MERGE_VIEW_OK=12;
+        public static final byte GET_DIGEST_REQ=13;
+        public static final byte GET_DIGEST_RSP=14;
+
 
         byte type=0;
         View view=null;            // used when type=VIEW or MERGE_RSP or INSTALL_MERGE_VIEW
@@ -1118,18 +1143,13 @@ public class GMS extends Protocol {
             sb.append('[' + type2String(type) + ']');
             switch(type) {
                 case JOIN_REQ:
+                case LEAVE_REQ:
+                case GET_DIGEST_REQ:
                     sb.append(": mbr=" + mbr);
                     break;
 
                 case JOIN_RSP:
                     sb.append(": join_rsp=" + join_rsp);
-                    break;
-
-                case LEAVE_REQ:
-                    sb.append(": mbr=" + mbr);
-                    break;
-
-                case LEAVE_RSP:
                     break;
 
                 case VIEW:
@@ -1147,6 +1167,7 @@ public class GMS extends Protocol {
                     break;
 
                 case INSTALL_MERGE_VIEW:
+                case GET_DIGEST_RSP:
                     sb.append(": view=" + view + ", digest=" + my_digest);
                     break;
 
@@ -1171,6 +1192,9 @@ public class GMS extends Protocol {
                 case CANCEL_MERGE: return "CANCEL_MERGE";
                 case VIEW_ACK: return "VIEW_ACK";
                 case JOIN_REQ_WITH_STATE_TRANSFER: return "JOIN_REQ_WITH_STATE_TRANSFER";
+                case INSTALL_MERGE_VIEW_OK: return "INSTALL_MERGE_VIEW_OK";
+                case GET_DIGEST_REQ: return "GET_DIGEST_REQ";
+                case GET_DIGEST_RSP: return "GET_DIGEST_RSP";
                 default: return "<unknown>";
             }
         }
@@ -1261,7 +1285,7 @@ public class GMS extends Protocol {
     /**
      * Class which processes JOIN, LEAVE and MERGE requests. Requests are queued and processed in FIFO order
      * @author Bela Ban
-     * @version $Id: GMS.java,v 1.126.2.20.2.2 2009/04/07 09:55:12 belaban Exp $
+     * @version $Id: GMS.java,v 1.126.2.20.2.3 2009/04/22 06:57:51 belaban Exp $
      */
     class ViewHandler implements Runnable {
         volatile Thread                    thread;
