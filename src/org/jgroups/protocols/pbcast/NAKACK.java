@@ -30,7 +30,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * to everyone instead of the requester by setting use_mcast_xmit to true.
  *
  * @author Bela Ban
- * @version $Id: NAKACK.java,v 1.170.2.16.2.4 2009/04/21 09:17:03 belaban Exp $
+ * @version $Id: NAKACK.java,v 1.170.2.16.2.5 2009/04/23 10:02:17 belaban Exp $
  */
 public class NAKACK extends Protocol implements Retransmitter.RetransmitCommand, NakReceiverWindow.Listener {
     private long[]              retransmit_timeouts={600, 1200, 2400, 4800}; // time(s) to wait before requesting retransmission
@@ -1306,17 +1306,19 @@ public class NAKACK extends Protocol implements Retransmitter.RetransmitCommand,
             long highest_delivered_seqno=val.getHighestDeliveredSeqno();
             long low_seqno=val.getLow();
 
-            // changed Feb 2008 (bela): http://jira.jboss.com/jira/browse/JGRP-699: we replace all existing entries
-            // except for myself
             NakReceiverWindow win=xmit_table.get(sender);
             if(win != null) {
-                if(local_addr != null && local_addr.equals(sender)) {
+                if(local_addr != null && local_addr.equals(sender))
                     continue;
-                }
-                else {
-                    win.reset(); // stops retransmission
-                    xmit_table.remove(sender);
-                }
+
+                // We only reset the window if its seqno is lower than the seqno shipped with the digest. Also, we
+                // don't reset our own window (https://jira.jboss.org/jira/browse/JGRP-948, comment 20/Apr/09 03:39 AM)
+                long my_highest_delivered_seqno=win.getHighestDelivered();
+                if(my_highest_delivered_seqno >= highest_delivered_seqno)
+                    continue;
+
+                win.reset(); // stops retransmission
+                xmit_table.remove(sender);
             }
             win=createNakReceiverWindow(sender, highest_delivered_seqno, low_seqno);
             xmit_table.put(sender, win);
