@@ -15,7 +15,7 @@ import java.util.*;
  * Tests overlapping merges, e.g. A: {A,B}, B: {A,B} and C: {A,B,C}. Tests unicast as well as multicast seqno tables.<br/>
  * Related JIRA: https://jira.jboss.org/jira/browse/JGRP-940
  * @author Bela Ban
- * @version $Id: OverlappingMergeTest.java,v 1.1.2.11 2009/04/07 10:12:50 belaban Exp $
+ * @version $Id: OverlappingMergeTest.java,v 1.1.2.12 2009/04/23 11:10:25 belaban Exp $
  */
 public class OverlappingMergeTest extends ChannelTestBase {
     private JChannel a, b, c;
@@ -29,9 +29,9 @@ public class OverlappingMergeTest extends ChannelTestBase {
         c=createChannel(); c.setReceiver(rc);
         modifyConfigs(a, b, c);
 
-        a.connect("testUnicastingAfterOverlappingMerge");
-        b.connect("testUnicastingAfterOverlappingMerge");
-        c.connect("testUnicastingAfterOverlappingMerge");
+        a.connect("OverlappingMergeTest");
+        b.connect("OverlappingMergeTest");
+        c.connect("OverlappingMergeTest");
         View view=c.getView();
         assertEquals("view is " + view, 3, view.size());
     }
@@ -119,6 +119,70 @@ public class OverlappingMergeTest extends ChannelTestBase {
         System.out.println("\n==== Sending messages after merge ====");
         sendAndCheckMessages(5, a, b, c);
     }
+
+
+    /**
+     * Verifies that unicasts are received correctly by all participants after an overlapping merge. The following steps
+     * are executed:
+     * <ol>
+     * <li/>Group is {A,B,C}
+     * <li/>Install view {A,C} in A and {A,B,C} in B and C
+     * <li/>Try to initiate a merge. This should FAIL until https://jira.jboss.org/jira/browse/JGRP-937 has
+     *      been implemented: B and C's MERGE2 protocols will never send out merge requests as they see A as coord 
+     * </ol>
+     */
+    public void testOverlappingMergeWithABC() throws Exception {
+        sendAndCheckMessages(5, a, b, c);
+
+        System.out.println("\n ==== Digests are:\n" + dumpDigests(a,b,c));
+
+        // Inject view {A,C} into A:
+        View new_view=Util.createView(a.getLocalAddress(), 4, a.getLocalAddress(), c.getLocalAddress());
+        System.out.println("\n ==== Injecting view " + new_view + " into A ====");
+        injectView(new_view, a);
+        assertTrue(Util.isCoordinator(a));
+        assertFalse(Util.isCoordinator(b));
+        assertFalse(Util.isCoordinator(c));
+
+        System.out.println("A's view: " + a.getView());
+        System.out.println("B's view: " + b.getView());
+        System.out.println("C's view: " + c.getView());
+        assertEquals("A's view is " + a.getView(), 2, a.getView().size());
+        assertEquals("B's view is " + b.getView(), 3, b.getView().size());
+        assertEquals("C's view is " + c.getView(), 3, c.getView().size());
+
+
+        // start merging
+        Vector<Address> coords=new Vector<Address>(2);
+        coords.add(a.getLocalAddress());
+        Event merge_evt=new Event(Event.MERGE, coords);
+        System.out.println("\n==== Injecting a merge event (leader=" + a + ") ====");
+        injectMergeEvent(merge_evt, a);
+
+        System.out.println("\n==== checking views after merge ====:");
+        for(int i=0; i < 20; i++) {
+            if(a.getView().size() == 3 && b.getView().size() == 3 && c.getView().size() == 3) {
+                System.out.println("views are correct: all views have a size of 3");
+                break;
+            }
+            System.out.print(".");
+            Util.sleep(500);
+        }
+
+        System.out.println("\n ==== Digests after the merge:\n" + dumpDigests(a,b,c));
+
+        View va=a.getView(), vb=b.getView(), vc=c.getView();
+        System.out.println("\nA's view: " + va);
+        System.out.println("B's view: " + vb);
+        System.out.println("C's view: " + vc);
+        assertEquals("A's view is " + va, 3, va.size());
+        assertEquals("B's view is " + vb, 3, vb.size());
+        assertEquals("C's view is " + vc, 3, vc.size());
+
+        System.out.println("\n==== Sending messages after merge ====");
+        sendAndCheckMessages(5, a, b, c);
+    }
+
 
     private static void makeCoordinator(JChannel ch) {
         GMS gms=(GMS)ch.getProtocolStack().findProtocol(GMS.class);
