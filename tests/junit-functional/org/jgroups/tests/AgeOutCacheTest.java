@@ -1,4 +1,3 @@
-// $Id: AgeOutCacheTest.java,v 1.1.2.1 2009/04/15 06:11:25 belaban Exp $
 package org.jgroups.tests;
 
 
@@ -19,8 +18,9 @@ import java.util.concurrent.ScheduledExecutorService;
 
 
 /**
- * Test cases for AckSenderWindow
+ * Test cases for AgeOutTest
  * @author Bela Ban
+ * @version $Id: AgeOutCacheTest.java,v 1.1.2.2 2009/04/24 12:24:30 belaban Exp $
  */
 public class AgeOutCacheTest extends TestCase {
     AgeOutCache<Integer> cache;
