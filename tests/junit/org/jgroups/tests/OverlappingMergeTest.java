@@ -15,7 +15,7 @@ import java.util.*;
  * Tests overlapping merges, e.g. A: {A,B}, B: {A,B} and C: {A,B,C}. Tests unicast as well as multicast seqno tables.<br/>
  * Related JIRA: https://jira.jboss.org/jira/browse/JGRP-940
  * @author Bela Ban
- * @version $Id: OverlappingMergeTest.java,v 1.1.2.13 2009/04/27 14:05:56 belaban Exp $
+ * @version $Id: OverlappingMergeTest.java,v 1.1.2.14 2009/04/27 15:11:16 belaban Exp $
  */
 public class OverlappingMergeTest extends ChannelTestBase {
     private JChannel a, b, c;
@@ -254,7 +254,7 @@ public class OverlappingMergeTest extends ChannelTestBase {
             Address addr=ch.getLocalAddress();
             for(Address dest: mbrs) {
                 for(int i=1; i <= num_msgs; i++) {
-                    ch.send(dest, null, "#" + 1);
+                    ch.send(dest, null, "#" + i);
                 }
             }
         }
