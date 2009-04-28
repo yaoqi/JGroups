@@ -35,7 +35,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * possible (until we stop at a gap, or there are no more messages).<br/>
  * UNICAST was enhanced in April 2009, the new design is described in doc/design/UNICAST.new.txt
  * @author Bela Ban
- * @version $Id: UNICAST.java,v 1.91.2.14.2.5 2009/04/15 07:18:43 belaban Exp $
+ * @version $Id: UNICAST.java,v 1.91.2.14.2.6 2009/04/28 11:35:35 belaban Exp $
  */
 public class UNICAST extends Protocol implements AckSenderWindow.RetransmitCommand, AgeOutCache.Handler<Address> {
     private final Vector<Address> members=new Vector<Address>(11);
@@ -537,7 +537,8 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
                         win=createReceiverWindow(sender, entry, seqno, conn_id);
                     }
                     else
-                        return;
+                        ; // no-op: we cannot drop the message as multiple SEND_FIRST_SEQNO requests might cause
+                          // multiple different messages to have conn-ids ! https://jira.jboss.org/jira/browse/JGRP-966
                 }
             }
         }
@@ -668,9 +669,13 @@ public class UNICAST extends Protocol implements AckSenderWindow.RetransmitComma
                 log.warn("didn't find any messages in my sender window for " + sender);
             return;
         }
+        // We need to copy the UnicastHeader and put it back into the message because Message.copy() doesn't copy
+        // the headers and therefore we'd modify the original message in the sender retransmission window
+        // (https://jira.jboss.org/jira/browse/JGRP-965)
         Message copy=rsp.copy();
         UnicastHeader hdr=(UnicastHeader)copy.getHeader(name);
-        hdr.conn_id=entry.send_conn_id;
+        UnicastHeader newhdr=new UnicastHeader(hdr.type, hdr.seqno, entry.send_conn_id);
+        copy.putHeader(name, newhdr);
         down_prot.down(new Event(Event.MSG, copy));
     }
 
