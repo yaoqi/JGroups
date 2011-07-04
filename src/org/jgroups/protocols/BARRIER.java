@@ -3,6 +3,7 @@ package org.jgroups.protocols;
 import org.jgroups.Event;
 import org.jgroups.Message;
 import org.jgroups.annotations.ManagedAttribute;
+import org.jgroups.annotations.ManagedOperation;
 import org.jgroups.annotations.Property;
 import org.jgroups.stack.Protocol;
 import org.jgroups.util.TimeScheduler;
@@ -188,7 +189,8 @@ public class BARRIER extends Protocol {
             scheduleBarrierOpener();
     }
 
-    private void openBarrier() {
+    @ManagedOperation(description="Opens the barrier. No-op if already open")
+    public void openBarrier() {
         lock.lock();
         try {
             if(!barrier_closed.compareAndSet(true, false))
