@@ -121,10 +121,10 @@ public class STABLE extends Protocol {
     private final Lock received=new ReentrantLock();
 
     /**
-     * When true, don't take part in garbage collection protocol: neither send
-     * STABLE messages nor handle STABILITY messages
+     * When true, don't take part in garbage collection: neither send STABLE messages nor handle STABILITY messages
      */
-    private boolean suspended=false;
+    @ManagedAttribute
+    protected boolean suspended=false;
 
     private boolean initialized=false;
 
