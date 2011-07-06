@@ -210,6 +210,11 @@ public class BlockingInputStream extends InputStream {
         }
     }
 
+    public boolean isClosed() {
+        lock.lock();
+        try {return closed;} finally {lock.unlock();}
+    }
+
     public String toString() {
         return size() + "/" + capacity() + ", size=" + size() + ", remaining=" + remaining() + (closed? " (closed)" : "");
     }

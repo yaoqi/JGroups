@@ -57,20 +57,21 @@ public class LargeState extends ReceiverAdapter {
         if(provider) {
             this.size=size;
             System.out.println("Waiting for other members to join and fetch large state");
-        }
-        else {
-            System.out.println("Getting state");
-            start=System.currentTimeMillis();
-            rc=channel.getState(null, 0);
-            System.out.println("getState(), rc=" + rc);
-        }
-        if(!provider) {
-            channel.close();
-        }
-        else {
             for(;;) {
                 Util.sleep(10000);
             }
+        }
+        System.out.println("Getting state");
+        start=System.currentTimeMillis();
+        try {
+            rc=channel.getState(null, 0);
+            System.out.println("getState(), rc=" + rc);
+        }
+        catch(Exception ex) {
+            System.err.println(ex + ": " + ex.getCause());
+        }
+        finally {
+            Util.close(channel);
         }
     }
 
@@ -101,7 +102,7 @@ public class LargeState extends ReceiverAdapter {
         stop=System.currentTimeMillis();
         if(state != null) {
             this.state=state;
-            System.out.println("<-- Received byte[] state, size=" + state.length + " (took " + (stop-start) + "ms)");
+            System.out.println("<-- Received byte[] state, size=" + Util.printBytes(state.length) + " (took " + (stop-start) + "ms)");
         }
     }
 
@@ -125,7 +126,7 @@ public class LargeState extends ReceiverAdapter {
             }
 
             stop=System.currentTimeMillis();
-            System.out.println("<-- Received stream state, size=" + total_received + " (took " + (stop-start) + "ms)");
+            System.out.println("<-- Received stream state, size=" + Util.printBytes(total_received) + " (took " + (stop-start) + "ms)");
         }
         finally {
             Util.close(istream);
@@ -141,7 +142,6 @@ public class LargeState extends ReceiverAdapter {
                     ostream.write(buf);
                 }
                 catch(IOException e) {
-                    e.printStackTrace();
                     break;
                 }
             }
@@ -152,7 +152,6 @@ public class LargeState extends ReceiverAdapter {
                     ostream.write(buf);
                 }
                 catch(IOException e) {
-                    e.printStackTrace();
                 }
             }
         }

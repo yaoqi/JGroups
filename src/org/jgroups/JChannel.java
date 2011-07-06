@@ -14,10 +14,7 @@ import org.jgroups.stack.AddressGenerator;
 import org.jgroups.stack.Protocol;
 import org.jgroups.stack.ProtocolStack;
 import org.jgroups.stack.StateTransferInfo;
-import org.jgroups.util.Promise;
-import org.jgroups.util.TimeScheduler;
-import org.jgroups.util.UUID;
-import org.jgroups.util.Util;
+import org.jgroups.util.*;
 import org.w3c.dom.Element;
 
 import java.io.File;
@@ -64,7 +61,7 @@ public class JChannel extends Channel {
     /*the protocol stack, used to send and receive messages from the protocol stack*/
     private ProtocolStack prot_stack=null;
 
-    private final Promise<Boolean> state_promise=new Promise<Boolean>();
+    private final Promise<StateTransferResult> state_promise=new Promise<StateTransferResult>();
 
     /*channel connected flag*/
     protected volatile boolean connected=false;
@@ -633,15 +630,14 @@ public class JChannel extends Channel {
         state_promise.reset();
         StateTransferInfo state_info=new StateTransferInfo(target, timeout);
         down(new Event(Event.GET_STATE, state_info));
-        Boolean b=state_promise.getResult(state_info.timeout);
+        StateTransferResult result=state_promise.getResult(state_info.timeout);
 
         if(initiateFlush)
             stopFlush();
 
-        boolean state_transfer_successfull=b != null && b.booleanValue();
-        if(!state_transfer_successfull)
-            down(new Event(Event.RESUME_STABLE));
-        return state_transfer_successfull;
+        if(result.hasException())
+            throw new StateTransferException("state transfer failed", result.getException());
+        return true;
     }
 
 
@@ -714,22 +710,21 @@ public class JChannel extends Channel {
                     }
                 }
                 finally {
-                    state_promise.setResult(state != null? Boolean.TRUE : Boolean.FALSE);
+                    state_promise.setResult(new StateTransferResult(state));
                 }
                 break;
             case Event.STATE_TRANSFER_INPUTSTREAM_CLOSED:
-                state_promise.setResult(Boolean.TRUE);
+                state_promise.setResult((StateTransferResult)evt.getArg());
                 break;
 
             case Event.STATE_TRANSFER_INPUTSTREAM:
-                StateTransferInfo sti=(StateTransferInfo)evt.getArg();
-                InputStream is=sti.inputStream;
                 // Oct 13,2006 moved to down() when Event.STATE_TRANSFER_INPUTSTREAM_CLOSED is received
                 // state_promise.setResult(is != null? Boolean.TRUE : Boolean.FALSE);
 
                 if(up_handler != null)
                     return up_handler.up(evt);
 
+                InputStream is=(InputStream)evt.getArg();
                 if(is != null && receiver != null) {
                     try {
                         receiver.setState(is);
@@ -814,10 +809,8 @@ public class JChannel extends Channel {
                 tmp_state=receiver.getState();
                 return new StateTransferInfo(null, 0L, tmp_state);
             case Event.STATE_TRANSFER_OUTPUTSTREAM:
-                StateTransferInfo sti=(StateTransferInfo)arg;
-                OutputStream os=sti.outputStream;
-                if(os != null)
-                    receiver.getState(os);
+                if(arg != null)
+                    receiver.getState((OutputStream)arg);
                 break;
             case Event.BLOCK:
                 receiver.block();
