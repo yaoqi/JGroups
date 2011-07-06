@@ -6,13 +6,11 @@ package org.jgroups.tests;
 import org.jgroups.*;
 import org.jgroups.jmx.JmxConfigurator;
 import org.jgroups.util.Util;
-import org.jgroups.util.Promise;
-
-import java.io.OutputStream;
-import java.io.InputStream;
-import java.io.IOException;
 
 import javax.management.MBeanServer;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 /**
  * Tests transfer of large states. Start first instance with -provider flag and -size flag (default = 1MB).
@@ -40,18 +38,16 @@ public class LargeState extends ReceiverAdapter {
     int      total_received=0;
 
 
-    public void start(boolean provider, int size, String props,boolean jmx) throws Exception {
+    public void start(boolean provider, int size, String props) throws Exception {
         this.provider=provider;
         channel=new JChannel(props);
         channel.setReceiver(this);
         channel.connect("TestChannel");
-        if(jmx) {
-            MBeanServer server=Util.getMBeanServer();
-            if(server == null)
-                throw new Exception("No MBeanServers found;" +
-                        "\nLargeState needs to be run with an MBeanServer present, or inside JDK 5");
-            JmxConfigurator.registerChannel((JChannel)channel, server, "jgroups", channel.getClusterName(), true);
-        }
+        MBeanServer server=Util.getMBeanServer();
+        if(server == null)
+            throw new Exception("No MBeanServers found;" +
+                                  "\nLargeState needs to be run with an MBeanServer present, or inside JDK 5");
+        JmxConfigurator.registerChannel((JChannel)channel, server, "jgroups", channel.getClusterName(), true);
         System.out.println("-- connected to channel");
 
         if(provider) {
@@ -163,7 +159,6 @@ public class LargeState extends ReceiverAdapter {
 
     public static void main(String[] args) {
         boolean provider=false;
-        boolean jmx=false;
         int size=1024 * 1024;
         String props=null;
 
@@ -176,10 +171,6 @@ public class LargeState extends ReceiverAdapter {
             }
             if("-provider".equals(args[i])) {
             	provider=true;
-                continue;
-            }
-            if("-jmx".equals(args[i])) {                
-                jmx=true;
                 continue;
             }
             if("-size".equals(args[i])) {
@@ -196,7 +187,7 @@ public class LargeState extends ReceiverAdapter {
 
 
         try {
-            new LargeState().start(provider, size, props,jmx);
+            new LargeState().start(provider, size, props);
         }
         catch(Exception e) {
             e.printStackTrace();
@@ -204,7 +195,7 @@ public class LargeState extends ReceiverAdapter {
     }
 
     static void help() {
-        System.out.println("LargeState [-help] [-size <size of state in bytes] [-provider] [-props <properties>] [-jmx]");
+        System.out.println("LargeState [-help] [-size <size of state in bytes] [-provider] [-props <properties>]");
     }
 
 }

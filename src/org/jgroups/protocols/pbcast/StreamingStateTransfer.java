@@ -34,11 +34,15 @@ import java.util.concurrent.locks.ReentrantLock;
  * transfer application state that is very large (>1Gb) without a likelihood of the
  * such transfer resulting in OutOfMemoryException.
  * <p/>
+ * Note that prior to 3.0, there was only 1 streaming protocol: STREAMING_STATE_TRANSFER. In 3.0 the functionality
+ * was split between STREAMING_STATE_TRANSFER and STREAMING_STATE_TRANSFER_SOCKET, and common functionality moved up
+ * into StreamingStateTransfer.
  * @author Bela Ban
+ * @author Vladimir Blagojevic
  * @see STATE_TRANSFER
  * @see STREAMING_STATE_TRANSFER
  * @see STREAMING_STATE_TRANSFER_SOCKET
- * @since 2.12.2
+ * @since 3.0
  */
 @MBean(description="Streaming state transfer protocol base class")
 public abstract class StreamingStateTransfer extends Protocol {
@@ -46,10 +50,13 @@ public abstract class StreamingStateTransfer extends Protocol {
     /*
      * ----------------------------------------------Properties -----------------------------------
      */
-    @Property(description="Maximum number of pool threads serving state requests. Default is 5")
+    @Property(description="Size (in bytes) of the state transfer buffer")
+    protected int buffer_size=8 * 1024;
+
+    @Property(description="Maximum number of pool threads serving state requests")
     protected int  max_pool=5;
 
-    @Property(description="Keep alive for pool threads serving state requests. Default is 20000 msec")
+    @Property(description="Keep alive for pool threads serving state requests")
     protected long pool_thread_keep_alive=20 * 1000;
 
 
@@ -57,17 +64,16 @@ public abstract class StreamingStateTransfer extends Protocol {
     /*
      * --------------------------------------------- JMX statistics -------------------------------
      */
-
     protected final AtomicInteger num_state_reqs=new AtomicInteger(0);
 
     protected final AtomicLong num_bytes_sent=new AtomicLong(0);
 
     protected double avg_state_size=0;
 
+
     /*
      * --------------------------------------------- Fields ---------------------------------------
      */
-
     protected Address local_addr=null;
 
     protected volatile Address state_provider=null;
@@ -82,7 +88,7 @@ public abstract class StreamingStateTransfer extends Protocol {
 
     /** Thread pool (configured with {@link #max_pool} and {@link #pool_thread_keep_alive}) to run
      * {@link org.jgroups.protocols.pbcast.StreamingStateTransfer.StateGetter} threads on */
-    protected ExecutorService thread_pool;
+    protected ThreadPoolExecutor thread_pool;
 
 
     /**
@@ -116,6 +122,9 @@ public abstract class StreamingStateTransfer extends Protocol {
         return avg_state_size;
     }
 
+    @ManagedAttribute public int  getThreadPoolSize() {return thread_pool.getPoolSize();}
+    @ManagedAttribute public long getThreadPoolCompletedTasks() {return thread_pool.getCompletedTaskCount();}
+
     public Vector<Integer> requiredDownServices() {
         Vector<Integer> retval=new Vector<Integer>();
         retval.addElement(new Integer(Event.GET_DIGEST));
@@ -146,6 +155,8 @@ public abstract class StreamingStateTransfer extends Protocol {
         map.put("state_transfer", true);
         map.put("protocol_class", getClass().getName());
         up_prot.up(new Event(Event.CONFIG, map));
+        if(buffer_size <= 0)
+            throw new IllegalArgumentException("buffer_size has to be > 0");
     }
 
 
@@ -277,7 +288,7 @@ public abstract class StreamingStateTransfer extends Protocol {
 
     protected abstract void handleException(Address sender, Throwable exception);
 
-    protected void getStateFromApplication(Address requester, OutputStream out) {
+    protected void getStateFromApplication(Address requester, OutputStream out, boolean use_separate_thread) {
         if(out == null || requester == null)
             throw new IllegalArgumentException("output stream and requester's address have to be non-null");
 
@@ -293,7 +304,10 @@ public abstract class StreamingStateTransfer extends Protocol {
             pending_state_transfers.put(requester, out);
 
             StateGetter state_getter=new StateGetter(requester, out);
-            thread_pool.execute(state_getter);
+            if(use_separate_thread)
+                thread_pool.execute(state_getter);
+            else
+                state_getter.run();
         }
         catch(Throwable t) {
             if(close_barrier)
@@ -426,7 +440,7 @@ public abstract class StreamingStateTransfer extends Protocol {
         modifyStateResponseHeader(hdr);
         state_rsp.putHeader(this.id, hdr);
         if(log.isDebugEnabled())
-            log.debug("Responding to state requester " + requester);
+            log.debug("responding to state requester " + requester);
         down_prot.down(new Event(Event.MSG, state_rsp));
         if(stats)
             num_state_reqs.incrementAndGet();

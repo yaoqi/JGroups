@@ -2,7 +2,6 @@ package org.jgroups.protocols.pbcast;
 
 import org.jgroups.*;
 import org.jgroups.annotations.MBean;
-import org.jgroups.annotations.Property;
 import org.jgroups.util.BlockingInputStream;
 import org.jgroups.util.StateTransferResult;
 import org.jgroups.util.Util;
@@ -14,21 +13,17 @@ import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * {@inheritDoc}
- * <p/>
  * STREAMING_STATE_TRANSFER streams the state (written to an OutputStream) to the state requester in chunks (defined by
  * chunk_size). Every chunk is sent via a unicast message. The state requester writes the chunks into a blocking
  * input stream ({@link BlockingInputStream}) from which the {@link MessageListener#setState(java.io.InputStream)}
  * reads it. The size of the BlockingInputStream is buffer_size bytes.
+ * @author Bela Ban
+ * @author Vladimir Blagojevic
+ * @since 2.4
  */
 @MBean(description="Streaming state transfer protocol")
 public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
 
-    /*
-     * ----------------------------------------------Properties ----------------------------------- 
-     */
-    @Property(description="Size (in bytes) of the state transfer buffer")
-    protected int buffer_size=8 * 1024;
 
     /*
     * --------------------------------------------- Fields ---------------------------------------
@@ -46,19 +41,6 @@ public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
     }
 
 
-
-    public void start() throws Exception {
-        super.start();
-        if(buffer_size <= 0)
-            throw new IllegalArgumentException("buffer_size has to be > 0");
-    }
-
-
-
-
-    /*
-     * --------------------------- Private Methods ------------------------------------------------
-     */
 
     protected void handleViewChange(View v) {
         super.handleViewChange(v);
@@ -100,22 +82,11 @@ public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
         }
     }
 
-    protected void openAndProvideInputStreamToStateReceiver(Address stateProvider) {
-        try {
-            Util.close(input_stream);
-            input_stream=new BlockingInputStream(buffer_size);
-            up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM, input_stream));
-        }
-        finally {
-            Util.close(input_stream);
-        }
-    }
-
 
 
     protected void createStreamToRequester(Address requester) {
         OutputStream bos=new StateOutputStream(requester);
-        getStateFromApplication(requester, bos);
+        getStateFromApplication(requester, bos, true);
     }
 
     
@@ -133,10 +104,6 @@ public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
     }
 
 
-
-    /*
-    * ------------------------ End of Private Methods --------------------------------------------
-    */
 
 
     protected class StateOutputStream extends OutputStream {
@@ -175,7 +142,6 @@ public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
             write(buf);
         }
 
-        int cnt=1;
 
         protected void sendMessage(byte[] b, int off, int len) throws IOException {
             Message m=new Message(stateRequester);
@@ -184,11 +150,9 @@ public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
             bytesWrittenCounter+=(len - off);
             if(Thread.interrupted())
                 throw interrupted((int)bytesWrittenCounter);
-            log.debug(local_addr + "#" + cnt + " sending " + Util.printBytes(len) + " of state to " + stateRequester);
             down_prot.down(new Event(Event.MSG, m));
             if(log.isDebugEnabled())
-                log.debug(local_addr + "#" + cnt + " sent " + Util.printBytes(len) + " of state to " + stateRequester);
-            cnt++;
+                log.debug(local_addr + " sent " + Util.printBytes(len) + " of state to " + stateRequester);
         }
 
 
