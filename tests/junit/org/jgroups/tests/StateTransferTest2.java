@@ -1,9 +1,6 @@
 package org.jgroups.tests;
 
-import org.jgroups.ChannelException;
-import org.jgroups.Global;
-import org.jgroups.JChannel;
-import org.jgroups.ReceiverAdapter;
+import org.jgroups.*;
 import org.jgroups.util.Util;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -45,6 +42,33 @@ public class StateTransferTest2 extends ChannelTestBase {
         assert state != null && state.equals("Bela");
     }
 
+    public void testUnsuccessfulStateTransferFailureAtStateProvider() throws ChannelException {
+        StateHandler sh1=new StateHandler("Bela", true, false),
+          sh2=new StateHandler(null, false, false);
+        c1.setReceiver(sh1);
+        c2.setReceiver(sh2);
+        boolean rc=c2.getState(null, 10000);
+        assert !rc;
+        Object state=sh2.getReceivedState();
+        System.out.println("state = " + state);
+        assert state == null;
+    }
+
+
+    public void testUnsuccessfulStateTransferFailureAtStateRequester() throws ChannelException {
+        StateHandler sh1=new StateHandler("Bela", false, false),
+          sh2=new StateHandler(null, false, true);
+        c1.setReceiver(sh1);
+        c2.setReceiver(sh2);
+        try {
+            c2.getState(null, 10000);
+            assert false : "we shouldn't get here; getState() should have thrown an exception";
+        }
+        catch(StateTransferException ste) {
+            System.out.println("getState() threw a StateTransferException - as expected: " + ste);
+        }
+    }
+
 
 
     protected static class StateHandler extends ReceiverAdapter {
@@ -65,7 +89,7 @@ public class StateTransferTest2 extends ChannelTestBase {
 
         public byte[] getState() {
             if(get_error)
-                throw new RuntimeException("state could not be serialized");
+                throw new RuntimeException("[dummy failure] state could not be serialized");
             try {
                 return Util.objectToByteBuffer(state_to_send);
             }
@@ -76,7 +100,7 @@ public class StateTransferTest2 extends ChannelTestBase {
 
         public void getState(OutputStream ostream) {
             if(get_error)
-                throw new RuntimeException("state could not be serialized");
+                throw new RuntimeException("[dummy failure] state could not be serialized");
             DataOutputStream out=new DataOutputStream(ostream);
             try {
                 Util.objectToStream(state_to_send, out);
@@ -91,7 +115,7 @@ public class StateTransferTest2 extends ChannelTestBase {
 
         public void setState(InputStream istream) {
             if(set_error)
-                throw new RuntimeException("state could not be set");
+                throw new RuntimeException("[dummy failure] state could not be set");
             DataInputStream in=new DataInputStream(istream);
             try {
                 received_state=Util.objectFromStream(in);
@@ -103,7 +127,7 @@ public class StateTransferTest2 extends ChannelTestBase {
 
         public void setState(byte[] state) {
             if(set_error)
-                throw new RuntimeException("state could not be set");
+                throw new RuntimeException("[dummy failure] state could not be set");
             try {
                 this.received_state=Util.objectFromByteBuffer(state);
             }
