@@ -26,20 +26,22 @@ public interface MessageListener {
 
     /**
      * Allows an application to write a state through a provided OutputStream.
-     * An application is obligated to always close the given OutputStream reference.
      *
      * @param ostream the OutputStream
+     * @throws Exception if the streaming fails, any exceptions should be thrown so that the state requester can
+     * re-throw them and let the caller know what happened
      * @see java.io.OutputStream#close()
      */
-    public void getState(OutputStream ostream);
+    public void getState(OutputStream ostream) throws Exception;
 
 
     /**
      * Allows an application to read a state through a provided InputStream.
-     * An application is obligated to always close the given InputStream reference.
      *
      * @param istream the InputStream
+     * @throws Exception if the streaming fails, any exceptions should be thrown so that the state requester can
+     * catch them and thus know what happened
      * @see java.io.InputStream#close()
      */
-    public void setState(InputStream istream);
+    public void setState(InputStream istream) throws Exception;
 }

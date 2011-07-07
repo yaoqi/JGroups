@@ -64,7 +64,7 @@ public class LargeState extends ReceiverAdapter {
             System.out.println("getState(), rc=" + rc);
         }
         catch(Exception ex) {
-            System.err.println(ex + ": " + ex.getCause());
+            System.err.println("Failed getting the state\nexception: " + ex + "\nroot cause: " + ex.getCause());
         }
         finally {
             Util.close(channel);
@@ -102,65 +102,41 @@ public class LargeState extends ReceiverAdapter {
         }
     }
 
-    public void setState(InputStream istream) {
-        try {
-            total_received=0;
-            int received=0;
-            while(true) {
-                byte[] buf=new byte[10000];
-                try {
-                    received=istream.read(buf);
-                    if(received < 0)
-                        break;
-                    // System.out.println("received " + received + " bytes");
-                    total_received+=received;
-                }
-                catch(IOException e) {
-                    e.printStackTrace();
-                    break;
-                }
-            }
+    public void setState(InputStream istream) throws Exception {
+        total_received=0;
+        int received=0;
+        while(true) {
+            byte[] buf=new byte[10000];
+            received=istream.read(buf);
+            if(received < 0)
+                break;
+            // System.out.println("received " + received + " bytes");
+            total_received+=received;
+        }
 
-            stop=System.currentTimeMillis();
-            System.out.println("<-- Received stream state, size=" + Util.printBytes(total_received) + " (took " + (stop-start) + "ms)");
-        }
-        finally {
-            Util.close(istream);
-        }
+        stop=System.currentTimeMillis();
+        System.out.println("<-- Received stream state, size=" + Util.printBytes(total_received) + " (took " + (stop-start) + "ms)");
     }
 
-    public void getState(OutputStream ostream) {
-        try {
-            int frag_size=size / 10;
-            for(int i=0; i < 10; i++) {
-                byte[] buf=new byte[frag_size];
-                try {
-                    ostream.write(buf);
-                }
-                catch(IOException e) {
-                    break;
-                }
-            }
-            int remaining=size - (10 * frag_size);
-            if(remaining > 0) {
-                byte[] buf=new byte[remaining];
-                try {
-                    ostream.write(buf);
-                }
-                catch(IOException e) {
-                }
-            }
+    public void getState(OutputStream ostream) throws Exception {
+        int frag_size=size / 10;
+        for(int i=0; i < 10; i++) {
+            byte[] buf=new byte[frag_size];
+            ostream.write(buf);
+            if(i > 5) throw new Exception("state provcider made BOOOOOM");
         }
-        finally {
-            Util.close(ostream);
+        int remaining=size - (10 * frag_size);
+        if(remaining > 0) {
+            byte[] buf=new byte[remaining];
+            ostream.write(buf);
         }
     }
 
 
     public static void main(String[] args) {
         boolean provider=false;
-        int size=1024 * 1024;
-        String props=null;
+        int     size=1024 * 1024;
+        String  props=null;
 
 
 

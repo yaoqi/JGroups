@@ -3,6 +3,7 @@ package org.jgroups.protocols.pbcast;
 import org.jgroups.Address;
 import org.jgroups.Event;
 import org.jgroups.Global;
+import org.jgroups.View;
 import org.jgroups.annotations.LocalAddress;
 import org.jgroups.annotations.MBean;
 import org.jgroups.annotations.Property;
@@ -90,35 +91,6 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             hdr.bind_addr=spawner.getServerSocketAddress();
     }
 
-    /*private void respondToStateRequester(Address stateRequester, boolean open_barrier) {
-
-        // setup socket plumbing if needed
-        if(spawner == null) {
-            spawner=new StateProviderAcceptor(createThreadPool(),
-                                                   Util.createServerSocket(getSocketFactory(),
-                                                                           Global.STREAMING_STATE_TRANSFER_SERVER_SOCK,
-                                                                           bind_addr, bind_port));
-            Thread t=getThreadFactory().newThread(spawner, "STREAMING_STATE_TRANSFER server socket acceptor");
-            t.start();
-        }
-
-        Digest digest=isDigestNeeded()? (Digest)down_prot.down(Event.GET_DIGEST_EVT) : null;
-
-        Message state_rsp=new Message(stateRequester);
-        StateHeader hdr=new StateHeader(StateHeader.STATE_RSP, spawner.getServerSocketAddress(), digest);
-        state_rsp.putHeader(this.id, hdr);
-
-        if(log.isDebugEnabled())
-            log.debug("Responding to state requester " + state_rsp.getDest() + " with address "
-                        + spawner.getServerSocketAddress() + " and digest " + digest);
-        down_prot.down(new Event(Event.MSG, state_rsp));
-        if(stats)
-            num_state_reqs.incrementAndGet();
-
-        if(open_barrier)
-            down_prot.down(new Event(Event.OPEN_BARRIER));
-    }*/
-
 
     protected void createStreamToRequester(Address requester) {
         ;
@@ -138,7 +110,8 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             // write out our state_id and address
             ObjectOutputStream out=new ObjectOutputStream(socket.getOutputStream());
             out.writeObject(local_addr);
-            bis=new BufferedInputStream(new StreamingInputStreamWrapper(socket), buffer_size);
+            // bis=new BufferedInputStream(new StreamingInputStreamWrapper(socket), buffer_size);
+            bis=new BufferedInputStream(socket.getInputStream(), buffer_size);
             setStateInApplication(provider, bis, hdr.getDigest());
         }
         catch(IOException e) {
@@ -163,56 +136,26 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
         super.handleStateReq(requester);
     }
 
-    protected void handleEOF(Address sender) {
-        openBarrierAndResumeStable();
-        up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult()));
-    }
 
-    protected void handleException(Address sender, Throwable exception) {
-        openBarrierAndResumeStable();
-        Exception ex=new Exception("state provider " + state_provider + " raised exception", exception);
+    protected void handleViewChange(View v) {
+        super.handleViewChange(v);
+        if(state_provider != null && !v.getMembers().contains(state_provider))
+            openBarrierAndResumeStable();
+        Exception ex=new EOFException("state provider " + state_provider + " left");
         up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult(ex)));
     }
 
-    /*protected void connectToStateProvider(StateHeader hdr, Address sender) {
-        IpAddress address=hdr.bind_addr;
-        InputStream bis=null;
-        Socket socket=new Socket();
-        try {
-            socket.bind(new InetSocketAddress(bind_addr, 0));
-            socket.setReceiveBufferSize(buffer_size);
-            if(log.isDebugEnabled())
-                log.debug("Connecting to state provider " + address.getIpAddress() + ":" + address.getPort());
 
-            Util.connect(socket, new InetSocketAddress(address.getIpAddress(), address.getPort()), 0);
-            if(log.isDebugEnabled())
-                log.debug("Connected to state provider, my socket is " + socket.getLocalAddress() + ":" + socket.getLocalPort());
 
-            // write out our state_id and address
-            ObjectOutputStream out=new ObjectOutputStream(socket.getOutputStream());
-            out.writeObject(local_addr);
-            bis=new BufferedInputStream(new StreamingInputStreamWrapper(socket), buffer_size);
-            up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM, bis));
-        }
-        catch(IOException e) {
-            if(log.isWarnEnabled())
-                log.warn("State reader socket thread spawned abnormaly", e);
 
-            handleException(sender, e);
-        }
-        finally {
-            if(!socket.isConnected()) {
-                if(log.isWarnEnabled())
-                    log.warn("Could not connect to state provider. Closing socket...");
-            }
-            Util.close(bis);
-            Util.close(socket);
-        }
-    }*/
+    protected void sendEof(Address requester) {
+        ; // no-op, we don't need to send an EOF because the peer closing the TCP socket will let us know
+    }
+
 
     /*
-     * ------------------------ End of Private Methods --------------------------------------------
-     */
+    * ------------------------ End of Private Methods --------------------------------------------
+    */
 
     protected class StateProviderAcceptor implements Runnable {
         protected final ExecutorService pool;
@@ -287,73 +230,6 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             }
         }
     }
-
-   
-
-    protected class StreamingInputStreamWrapper extends FilterInputStream {
-
-        protected final Socket inputStreamOwner;
-
-        protected final AtomicBoolean closed=new AtomicBoolean(false);
-
-        public StreamingInputStreamWrapper(Socket inputStreamOwner) throws IOException {
-            super(inputStreamOwner.getInputStream());
-            this.inputStreamOwner=inputStreamOwner;
-        }
-
-        public void close() throws IOException {
-            if(closed.compareAndSet(false, true)) {
-                if(log.isDebugEnabled()) {
-                    log.debug("state reader is closing the socket ");
-                }
-                Util.close(inputStreamOwner);
-                up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult()));
-            }
-            super.close();
-        }
-    }
-
-    /*protected class StreamingOutputStreamWrapper extends FilterOutputStream {
-        protected final Socket outputStreamOwner;
-
-        protected final AtomicBoolean closed=new AtomicBoolean(false);
-
-        protected long bytesWrittenCounter=0;
-
-        public StreamingOutputStreamWrapper(Socket outputStreamOwner) throws IOException {
-            super(outputStreamOwner.getOutputStream());
-            this.outputStreamOwner=outputStreamOwner;
-        }
-
-        public void close() throws IOException {
-            if(closed.compareAndSet(false, true)) {
-                if(log.isDebugEnabled()) {
-                    log.debug("State writer is closing the socket ");
-                }
-                Util.close(outputStreamOwner);
-                if(stats)
-                    avg_state_size=num_bytes_sent.addAndGet(bytesWrittenCounter) / num_state_reqs.doubleValue();
-                super.close();
-            }
-        }
-
-        public void write(byte[] b, int off, int len) throws IOException {
-            // Thanks Kornelius Elstner
-            // https://jira.jboss.org/browse/JGRP-1223
-            out.write(b, off, len);
-            bytesWrittenCounter+=len;
-        }
-
-        public void write(byte[] b) throws IOException {
-            super.write(b);
-            bytesWrittenCounter+=b.length;
-        }
-
-        public void write(int b) throws IOException {
-            super.write(b);
-            bytesWrittenCounter+=1;
-        }
-    }*/
 
 
 }

@@ -730,8 +730,9 @@ public class JChannel extends Channel {
                         receiver.setState(is);
                     }
                     catch(Throwable t) {
-                        if(log.isWarnEnabled())
-                            log.warn("failed calling setState() in receiver", t);
+                        // if(log.isWarnEnabled())
+                          //  log.warn("failed calling setState() in receiver", t);
+                        throw new RuntimeException("failed calling setState() in receiver", t);
                     }
                 }
                 break;
@@ -754,8 +755,9 @@ public class JChannel extends Channel {
                 return invokeCallback(evt.getType(), evt.getArg());
             }
             catch(Throwable t) {
-                if(log.isWarnEnabled())
-                    log.warn("failed invoking callback in receiver", t);
+                // if(log.isWarnEnabled())
+                  //  log.warn("failed invoking callback in receiver", t);
+                throw new RuntimeException("failed invoking callback " + evt, t);
             }
         }
         return null;
@@ -793,7 +795,7 @@ public class JChannel extends Channel {
 
 
     /* ----------------------------------- Private Methods ------------------------------------- */
-    protected Object invokeCallback(int type, Object arg) {
+    protected Object invokeCallback(int type, Object arg) throws Throwable {
         switch(type) {
             case Event.MSG:
                 receiver.receive((Message)arg);

@@ -409,7 +409,7 @@ public class MessageDispatcher implements RequestHandler {
 
 
 
-        private Object handleUpEvent(Event evt) {
+        private Object handleUpEvent(Event evt) throws Throwable {
             switch(evt.getType()) {
                 case Event.MSG:
                     if(msg_listener != null) {
@@ -504,7 +504,12 @@ public class MessageDispatcher implements RequestHandler {
         public Object up(Event evt) {
             if(corr != null) {
                 if(!corr.receive(evt)) {
-                    return handleUpEvent(evt);
+                    try {
+                        return handleUpEvent(evt);
+                    }
+                    catch(Throwable t) {
+                        throw new RuntimeException(t);
+                    }
                 }
             }
             else {

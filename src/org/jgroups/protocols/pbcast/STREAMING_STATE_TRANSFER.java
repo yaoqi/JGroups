@@ -57,15 +57,12 @@ public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
         if(input_stream == null || input_stream.isClosed())
             return;
         Util.close(input_stream);
-        openBarrierAndResumeStable();
-        up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult()));
+        super.handleEOF(sender);
     }
 
     protected void handleException(Address sender, Throwable exception) {
         Util.close(input_stream);
-        openBarrierAndResumeStable();
-        Exception ex=new Exception("state provider " + state_provider + " raised exception", exception);
-        up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult(ex)));
+        super.handleException(sender, exception);
     }
 
     protected void handleStateChunk(Address sender, byte[] buffer, int offset, int length) {

@@ -1,20 +1,19 @@
 package org.jgroups.protocols.pbcast;
 
 import org.jgroups.*;
-import org.jgroups.annotations.GuardedBy;
-import org.jgroups.annotations.MBean;
-import org.jgroups.annotations.ManagedAttribute;
-import org.jgroups.annotations.Property;
+import org.jgroups.annotations.*;
 import org.jgroups.stack.IpAddress;
 import org.jgroups.stack.Protocol;
 import org.jgroups.stack.StateTransferInfo;
 import org.jgroups.util.Digest;
 import org.jgroups.util.ShutdownRejectedExecutionHandler;
+import org.jgroups.util.StateTransferResult;
 import org.jgroups.util.Util;
 
 import java.io.*;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Lock;
@@ -84,6 +83,10 @@ public abstract class StreamingStateTransfer extends Protocol {
 
     /* Set to true if the FLUSH protocol is detected in the protocol stack */
     protected volatile boolean flushProtocolInStack=false;
+
+    /** Used to prevent spurious open and close barrier calls */
+    @ManagedAttribute(description="whether or not the barrier is closed")
+    protected AtomicBoolean barrier_closed=new AtomicBoolean(false);
 
 
     /** Thread pool (configured with {@link #max_pool} and {@link #pool_thread_keep_alive}) to run
@@ -159,12 +162,15 @@ public abstract class StreamingStateTransfer extends Protocol {
             throw new IllegalArgumentException("buffer_size has to be > 0");
     }
 
+    public void stop() {
+        super.stop();
+        barrier_closed.set(false);
+    }
 
     public Object down(Event evt) {
 
         switch(evt.getType()) {
 
-            case Event.TMP_VIEW:
             case Event.VIEW_CHANGE:
                 handleViewChange((View)evt.getArg());
                 break;
@@ -248,7 +254,6 @@ public abstract class StreamingStateTransfer extends Protocol {
                 }
                 break;
 
-            case Event.TMP_VIEW:
             case Event.VIEW_CHANGE:
                 handleViewChange((View)evt.getArg());
                 break;
@@ -284,9 +289,16 @@ public abstract class StreamingStateTransfer extends Protocol {
         ;
     }
 
-    protected abstract void handleEOF(Address sender);
+    protected void handleEOF(Address sender) {
+        openBarrierAndResumeStable();
+        up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult()));
+    }
 
-    protected abstract void handleException(Address sender, Throwable exception);
+    protected void handleException(Address sender, Throwable exception) {
+        openBarrierAndResumeStable();
+        Exception ex=new Exception("state provider " + state_provider + " raised exception", exception);
+        up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult(ex)));
+    }
 
     protected void getStateFromApplication(Address requester, OutputStream out, boolean use_separate_thread) {
         if(out == null || requester == null)
@@ -327,22 +339,28 @@ public abstract class StreamingStateTransfer extends Protocol {
             if(digest != null)
                 down_prot.down(new Event(Event.OVERWRITE_DIGEST, digest));
             up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM, in));
-            handleEOF(provider);
+            // handleEOF(provider);
+            openBarrierAndResumeStable();
         }
         catch(Throwable t) {
             handleException(provider, t);
         }
     }
 
-
-    protected void closeBarrierAndSuspendStable() {
+    @ManagedOperation(description="Closes BARRIER and suspends STABLE")
+    public void closeBarrierAndSuspendStable() {
+        if(!barrier_closed.compareAndSet(false, true))
+            return;
         if(log.isTraceEnabled())
             log.trace("sending down CLOSE_BARRIER and SUSPEND_STABLE");
         down_prot.down(new Event(Event.CLOSE_BARRIER));
         down_prot.down(new Event(Event.SUSPEND_STABLE));
     }
 
-    protected void openBarrierAndResumeStable() {
+    @ManagedOperation(description="Opens BARRIER and resumes STABLE")
+    public void openBarrierAndResumeStable() {
+        if(!barrier_closed.compareAndSet(true, false))
+            return;
         if(log.isTraceEnabled())
             log.trace("sending down OPEN_BARRIER and RESUME_STABLE");
         down_prot.down(new Event(Event.OPEN_BARRIER));
@@ -580,7 +598,7 @@ public abstract class StreamingStateTransfer extends Protocol {
             }
             catch(Throwable e) {
                 if(log.isWarnEnabled())
-                    log.warn("StateOutputStream could not be given to application", e);
+                    log.warn("calling setState() failed", e);
                 sendException(requester, e); // send the exception to the remote consumer
             }
             finally {
