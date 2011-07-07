@@ -64,7 +64,7 @@ public class LargeState extends ReceiverAdapter {
             System.out.println("getState(), rc=" + rc);
         }
         catch(Exception ex) {
-            System.err.println("Failed getting the state\nexception: " + ex + "\nroot cause: " + ex.getCause());
+            ex.printStackTrace();
         }
         finally {
             Util.close(channel);

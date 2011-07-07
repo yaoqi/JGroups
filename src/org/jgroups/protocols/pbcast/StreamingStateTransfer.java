@@ -296,8 +296,7 @@ public abstract class StreamingStateTransfer extends Protocol {
 
     protected void handleException(Address sender, Throwable exception) {
         openBarrierAndResumeStable();
-        Exception ex=new Exception("state provider " + state_provider + " raised exception", exception);
-        up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult(ex)));
+        up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult(exception)));
     }
 
     protected void getStateFromApplication(Address requester, OutputStream out, boolean use_separate_thread) {
