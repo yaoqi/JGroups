@@ -17,6 +17,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * chunk_size). Every chunk is sent via a unicast message. The state requester writes the chunks into a blocking
  * input stream ({@link BlockingInputStream}) from which the {@link MessageListener#setState(java.io.InputStream)}
  * reads it. The size of the BlockingInputStream is buffer_size bytes.
+ * <p/>
+ * When implementing {@link MessageListener#getState(java.io.OutputStream)}, the state should be written in sizeable
+ * chunks, because the underlying output stream generates 1 message / write. So if there are 1000 writes of 1 byte
+ * each, this would generate 1000 messages ! We suggest using a {@link java.io.BufferedOutputStream} over the output
+ * stream handed to the application as argument of the callback.
+ * <p/>
+ * When implementing the {@link MessageListener#setState(java.io.InputStream)} callback, there is no need to use a
+ * {@link java.io.BufferedOutputStream}, as the input stream handed to the application already buffers incoming data
+ * internally.
  * @author Bela Ban
  * @author Vladimir Blagojevic
  * @since 2.4
@@ -47,15 +56,12 @@ public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
         if(state_provider != null && !v.getMembers().contains(state_provider)) {
             Util.close(input_stream);
             openBarrierAndResumeStable();
+            Exception ex=new EOFException("state provider " + state_provider + " left");
+            up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult(ex)));
         }
-        Exception ex=new EOFException("state provider " + state_provider + " left");
-        up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult(ex)));
-
     }
 
     protected void handleEOF(Address sender) {
-        if(input_stream == null || input_stream.isClosed())
-            return;
         Util.close(input_stream);
         super.handleEOF(sender);
     }
@@ -74,8 +80,7 @@ public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
             input_stream.write(buffer, offset, length);
         }
         catch(IOException e) {
-            log.error("failed writing to input stream", e);
-            openBarrierAndResumeStable(); // todo: needed ?
+            handleException(sender, e);
         }
     }
 
@@ -144,7 +149,7 @@ public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
             Message m=new Message(stateRequester);
             m.putHeader(id, new StateHeader(StateHeader.STATE_PART));
             m.setBuffer(b, off, len);
-            bytesWrittenCounter+=(len - off);
+            bytesWrittenCounter+=len;
             if(Thread.interrupted())
                 throw interrupted((int)bytesWrittenCounter);
             down_prot.down(new Event(Event.MSG, m));

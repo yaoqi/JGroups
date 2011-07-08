@@ -254,6 +254,7 @@ public abstract class StreamingStateTransfer extends Protocol {
                 }
                 break;
 
+            case Event.TMP_VIEW:
             case Event.VIEW_CHANGE:
                 handleViewChange((View)evt.getArg());
                 break;
@@ -290,15 +291,20 @@ public abstract class StreamingStateTransfer extends Protocol {
     }
 
     protected void handleEOF(Address sender) {
+        if(log.isTraceEnabled())
+            log.trace(local_addr + " <-- EOF <-- " + sender);
+        state_provider=null; // ??
         openBarrierAndResumeStable();
-        up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult()));
+        up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult()));
     }
 
     protected void handleException(Address sender, Throwable exception) {
+        state_provider=null; // ??
         openBarrierAndResumeStable();
         up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult(exception)));
     }
 
+    
     protected void getStateFromApplication(Address requester, OutputStream out, boolean use_separate_thread) {
         if(out == null || requester == null)
             throw new IllegalArgumentException("output stream and requester's address have to be non-null");
@@ -331,6 +337,15 @@ public abstract class StreamingStateTransfer extends Protocol {
         }
     }
 
+    @GuardedBy("state_lock")
+    protected void removeRequester(Address requester) {
+        if(requester == null) return;
+        OutputStream out=pending_state_transfers.remove(requester);
+        Util.close(out);
+        if(out != null && pending_state_transfers.isEmpty())
+            openBarrierAndResumeStable();
+    }
+
     
     protected void setStateInApplication(Address provider, InputStream in, Digest digest) {
         closeBarrierAndSuspendStable(); // fix for https://jira.jboss.org/jira/browse/JGRP-1013
@@ -338,7 +353,8 @@ public abstract class StreamingStateTransfer extends Protocol {
             if(digest != null)
                 down_prot.down(new Event(Event.OVERWRITE_DIGEST, digest));
             up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM, in));
-            // handleEOF(provider);
+            /*if(closeStreamAfterSettingState())
+                handleEOF(provider);*/
             openBarrierAndResumeStable();
         }
         catch(Throwable t) {
@@ -370,6 +386,8 @@ public abstract class StreamingStateTransfer extends Protocol {
         try {
             Message eof_msg=new Message(requester);
             eof_msg.putHeader(getId(), new StateHeader(StateHeader.STATE_EOF));
+            if(log.isTraceEnabled())
+                log.trace(local_addr + " --> EOF --> " + requester);
             down(new Event(Event.MSG, eof_msg));
         }
         catch(Throwable t) {
@@ -427,13 +445,8 @@ public abstract class StreamingStateTransfer extends Protocol {
         try {
             Set<Address> keys=new HashSet<Address>(pending_state_transfers.keySet());
             for(Address key: keys) {
-                if(!new_members.contains(key)) {
-                    OutputStream out=pending_state_transfers.remove(key);
-                    Util.close(out);
-                    if(out != null && pending_state_transfers.isEmpty())
-                        openBarrierAndResumeStable();
-                    // sendEof(key);// not needed, key is dead !
-                }
+                if(!new_members.contains(key))
+                    removeRequester(key);
             }
         }
         finally {
@@ -475,7 +488,8 @@ public abstract class StreamingStateTransfer extends Protocol {
 
     /** Creates an InputStream to the state provider to read the state */
     protected abstract void createStreamToProvider(Address provider, StateHeader hdr);
-    
+
+    // protected boolean closeStreamAfterSettingState() {return true;}
 
     protected void modifyStateResponseHeader(StateHeader hdr) {
         ;
@@ -601,11 +615,9 @@ public abstract class StreamingStateTransfer extends Protocol {
                 sendException(requester, e); // send the exception to the remote consumer
             }
             finally {
-                Util.close(output);
                 state_lock.lock();
                 try {
-                    if(pending_state_transfers.remove(requester) != null && pending_state_transfers.isEmpty())
-                        openBarrierAndResumeStable();
+                    removeRequester(requester);
                 }
                 finally {
                     state_lock.unlock();

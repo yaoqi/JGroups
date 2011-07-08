@@ -18,11 +18,19 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * <code>STREAMING_STATE_TRANSFER_SOCKET</code> has the state provider create a server socket to which the state
  * requester connects and from which the latter reads the state.
+ * <p/>
+ * When implementing {@link org.jgroups.MessageListener#getState(java.io.OutputStream)}, the state should be written in
+ * sizeable chunks, because the underlying output stream sends 1 message / write over the socket. So if there are 1000
+ * writes of 1 byte each, this would generate 1000 messages ! We suggest using a {@link java.io.BufferedOutputStream}
+ * over the output stream handed to the application as argument of the callback.
+ * <p/>
+ * When implementing the {@link org.jgroups.MessageListener#setState(java.io.InputStream)} callback, there is no need to use a
+ * {@link java.io.BufferedOutputStream}, as the input stream handed to the application already buffers incoming data
+ * internally.
  * @author Vladimir Blagojevic
  * @author Bela Ban
  * @see STATE_TRANSFER
@@ -91,6 +99,9 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             hdr.bind_addr=spawner.getServerSocketAddress();
     }
 
+    /*protected boolean closeStreamAfterSettingState() {
+        return false;
+    }*/
 
     protected void createStreamToRequester(Address requester) {
         ;
@@ -120,10 +131,6 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             handleException(provider, e);
         }
         finally {
-            if(!socket.isConnected()) {
-                if(log.isWarnEnabled())
-                    log.warn("could not connect to state provider. Closing socket...");
-            }
             Util.close(bis);
             Util.close(socket);
         }
@@ -139,18 +146,14 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
 
     protected void handleViewChange(View v) {
         super.handleViewChange(v);
-        if(state_provider != null && !v.getMembers().contains(state_provider))
+        if(state_provider != null && !v.getMembers().contains(state_provider)) {
             openBarrierAndResumeStable();
-        Exception ex=new EOFException("state provider " + state_provider + " left");
-        up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult(ex)));
+            Exception ex=new EOFException("state provider " + state_provider + " left");
+            up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult(ex)));
+        }
     }
 
 
-
-
-    protected void sendEof(Address requester) {
-        ; // no-op, we don't need to send an EOF because the peer closing the TCP socket will let us know
-    }
 
 
     /*
@@ -170,6 +173,9 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             this.serverSocket=stateServingSocket;
             this.address=new IpAddress(STREAMING_STATE_TRANSFER_SOCKET.this.bind_addr, serverSocket.getLocalPort());
         }
+
+        public IpAddress getServerSocketAddress() {return address;}
+        public boolean   isRunning()              {return running;}
 
         public void run() {
             runner=Thread.currentThread();
@@ -208,18 +214,14 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             catch(Throwable e) {
                 if(log.isWarnEnabled())
                     log.warn("failed connecting to state provider", e);
-                Util.close(output);
+            }
+            // getStateFromApplication() is run in the same thread; it closes the output stream, and we close the socket
+            finally {
                 Util.close(socket);
             }
         }
 
-        public IpAddress getServerSocketAddress() {
-            return address;
-        }
 
-        public boolean isRunning() {
-            return running;
-        }
 
         public void stop() {
             running=false;

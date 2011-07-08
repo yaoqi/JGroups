@@ -96,7 +96,13 @@ API changes in 3.0.0
 
 - ChannelNotConnectedException and ChannelCloseException have been replaced by the superclass ChannelException. This way,
   new exceptions can be thrown (and documented in the javadoc) without having to change the signature in the future.
-  These changes affect mainly JChannel.
+  These changes affect mainly JChannel
+
+- ChannelException (and subclasses) has been replaced by Exception in all signatures
+
+- State transfer API changes:
+  ---------------------------
+
 
 
 

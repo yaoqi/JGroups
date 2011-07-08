@@ -110,7 +110,6 @@ public class LargeState extends ReceiverAdapter {
             received=istream.read(buf);
             if(received < 0)
                 break;
-            // System.out.println("received " + received + " bytes");
             total_received+=received;
         }
 
@@ -123,7 +122,7 @@ public class LargeState extends ReceiverAdapter {
         for(int i=0; i < 10; i++) {
             byte[] buf=new byte[frag_size];
             ostream.write(buf);
-            if(i > 5) throw new Exception("state provcider made BOOOOOM");
+            // if(i > 5) throw new Exception("state provcider made BOOOOOM");
         }
         int remaining=size - (10 * frag_size);
         if(remaining > 0) {

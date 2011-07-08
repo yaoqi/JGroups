@@ -586,7 +586,7 @@ public class ReplicatedHashMap<K extends Serializable, V extends Serializable> e
             copy.put(key, val);
         }
         try {
-            oos=new ObjectOutputStream(ostream);
+            oos=new ObjectOutputStream(new BufferedOutputStream(ostream, 1024));
             oos.writeObject(copy);
         }
         catch(Throwable ex) {

@@ -730,9 +730,18 @@ public class JChannel extends Channel {
                         receiver.setState(is);
                     }
                     catch(Throwable t) {
-                        // if(log.isWarnEnabled())
-                          //  log.warn("failed calling setState() in receiver", t);
-                        throw new RuntimeException("failed calling setState() in receiver", t);
+                        throw new RuntimeException("failed calling setState() in state requester", t);
+                    }
+                }
+                break;
+
+            case Event.STATE_TRANSFER_OUTPUTSTREAM:
+                if(receiver != null && evt.getArg() != null) {
+                    try {
+                        receiver.getState((OutputStream)evt.getArg());
+                    }
+                    catch(Exception e) {
+                        throw new RuntimeException("failed calling getState() in state provider", e);
                     }
                 }
                 break;
@@ -749,17 +758,8 @@ public class JChannel extends Channel {
         if(up_handler != null)
             return up_handler.up(evt);
 
-        // Invoke a callback in the receiver
-        if(receiver != null) {
-            try {
-                return invokeCallback(evt.getType(), evt.getArg());
-            }
-            catch(Throwable t) {
-                // if(log.isWarnEnabled())
-                  //  log.warn("failed invoking callback in receiver", t);
-                throw new RuntimeException("failed invoking callback " + evt, t);
-            }
-        }
+        if(receiver != null)
+            return invokeCallback(evt.getType(), evt.getArg());
         return null;
     }
 
@@ -795,7 +795,7 @@ public class JChannel extends Channel {
 
 
     /* ----------------------------------- Private Methods ------------------------------------- */
-    protected Object invokeCallback(int type, Object arg) throws Throwable {
+    protected Object invokeCallback(int type, Object arg) {
         switch(type) {
             case Event.MSG:
                 receiver.receive((Message)arg);
@@ -810,10 +810,6 @@ public class JChannel extends Channel {
                 byte[] tmp_state=null;
                 tmp_state=receiver.getState();
                 return new StateTransferInfo(null, 0L, tmp_state);
-            case Event.STATE_TRANSFER_OUTPUTSTREAM:
-                if(arg != null)
-                    receiver.getState((OutputStream)arg);
-                break;
             case Event.BLOCK:
                 receiver.block();
                 return true;

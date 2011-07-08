@@ -25,7 +25,8 @@ public interface MessageListener {
     void          setState(byte[] state);
 
     /**
-     * Allows an application to write a state through a provided OutputStream.
+     * Allows an application to write a state through a provided OutputStream. When done, the OutputStream doesn't need
+     * to be closed; this is done automatically when returning from the callback
      *
      * @param ostream the OutputStream
      * @throws Exception if the streaming fails, any exceptions should be thrown so that the state requester can
@@ -36,7 +37,8 @@ public interface MessageListener {
 
 
     /**
-     * Allows an application to read a state through a provided InputStream.
+     * Allows an application to read a state through a provided InputStream. When done, the InputStream doesn't need
+     * to be closed; this is done automatically when returning from the callback
      *
      * @param istream the InputStream
      * @throws Exception if the streaming fails, any exceptions should be thrown so that the state requester can

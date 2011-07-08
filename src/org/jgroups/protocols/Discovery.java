@@ -526,7 +526,7 @@ public abstract class Discovery extends Protocol {
     }
 
 
-    private void sendDiscoveryResponse(Address logical_addr, List<PhysicalAddress> physical_addrs,
+    protected void sendDiscoveryResponse(Address logical_addr, List<PhysicalAddress> physical_addrs,
                                        boolean is_server, String logical_name, Address sender) {
         PingData ping_rsp=new PingData(logical_addr, view, is_server, logical_name, physical_addrs);
         Message rsp_msg=new Message(sender, null, null);

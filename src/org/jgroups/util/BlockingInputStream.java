@@ -56,11 +56,19 @@ public class BlockingInputStream extends InputStream {
 
     /** {@inheritDoc} */
     public int read() throws IOException {
+       /* byte[] buffer=new byte[1];
+        int num=read(buffer, 0, 1);
+        if(num == -1)
+            return -1;
+        else {
+            return buffer[0] & 0xff;
+        }*/
+
         lock.lock();
         try {
             while(true) {
                 if(read_pos < write_pos) {
-                    int retval=buf[read_pos++];
+                    int retval=buf[read_pos++] & 0xff;
                     not_full.signal();
                     return retval;
                 }

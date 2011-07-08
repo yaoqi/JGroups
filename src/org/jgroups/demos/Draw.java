@@ -317,32 +317,12 @@ public class Draw extends ReceiverAdapter implements ActionListener, ChannelList
     }
 
 
-    public void getState(OutputStream ostream) {
-        try {
-            try {
-                panel.writeState(ostream);
-            }
-            catch(IOException e) {
-                e.printStackTrace();
-            }
-        }
-        finally {
-            Util.close(ostream);
-        }
+    public void getState(OutputStream ostream) throws Exception {
+        panel.writeState(ostream);
     }
 
-    public void setState(InputStream istream) {
-        try {
-            try {
-                panel.readState(istream);
-            }
-            catch(IOException e) {
-                e.printStackTrace();
-            }
-        }
-        finally {
-            Util.close(istream);
-        }
+    public void setState(InputStream istream) throws Exception {
+        panel.readState(istream);
     }
 
     /* --------------- Callbacks --------------- */
@@ -489,7 +469,8 @@ public class Draw extends ReceiverAdapter implements ActionListener, ChannelList
         public void writeState(OutputStream outstream) throws IOException {
             synchronized(state) {
                 if(state != null) {
-                    DataOutputStream dos=new DataOutputStream(outstream);
+                    DataOutputStream dos=new DataOutputStream(new BufferedOutputStream(outstream, 4096));
+                    // DataOutputStream dos=new DataOutputStream(outstream);
                     dos.writeInt(state.size());
                     Point point;
                     Color col;
