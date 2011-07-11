@@ -467,22 +467,20 @@ public class Draw extends ReceiverAdapter implements ActionListener, ChannelList
         }
 
         public void writeState(OutputStream outstream) throws IOException {
+            if(state == null)
+                return;
             synchronized(state) {
-                if(state != null) {
-                    DataOutputStream dos=new DataOutputStream(new BufferedOutputStream(outstream, 4096));
-                    // DataOutputStream dos=new DataOutputStream(outstream);
-                    dos.writeInt(state.size());
-                    Point point;
-                    Color col;
-                    for(Map.Entry<Point,Color> entry: state.entrySet()) {
-                        point=entry.getKey();
-                        col=entry.getValue();
-                        dos.writeInt(point.x);
-                        dos.writeInt(point.y);
-                        dos.writeInt(col.getRGB());
-                    }
-                    dos.flush();
+                DataOutputStream dos=new DataOutputStream(new BufferedOutputStream(outstream, 4096));
+                // DataOutputStream dos=new DataOutputStream(outstream);
+                dos.writeInt(state.size());
+                for(Map.Entry<Point,Color> entry: state.entrySet()) {
+                    Point point=entry.getKey();
+                    Color col=entry.getValue();
+                    dos.writeInt(point.x);
+                    dos.writeInt(point.y);
+                    dos.writeInt(col.getRGB());
                 }
+                dos.flush();
             }
         }
 
@@ -491,11 +489,9 @@ public class Draw extends ReceiverAdapter implements ActionListener, ChannelList
             DataInputStream in=new DataInputStream(instream);
             Map<Point,Color> new_state=new HashMap<Point,Color>();
             int num=in.readInt();
-            Point point;
-            Color col;
             for(int i=0; i < num; i++) {
-                point=new Point(in.readInt(), in.readInt());
-                col=new Color(in.readInt());
+                Point point=new Point(in.readInt(), in.readInt());
+                Color col=new Color(in.readInt());
                 new_state.put(point, col);
             }
 
