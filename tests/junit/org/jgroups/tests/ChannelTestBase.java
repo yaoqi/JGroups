@@ -372,7 +372,7 @@ public class ChannelTestBase {
             return null;
         }
 
-        public void getState(OutputStream ostream) {
+        public void getState(OutputStream ostream) throws Exception {
             events.append('g');
         }
 
@@ -380,7 +380,7 @@ public class ChannelTestBase {
             events.append('s');
         }
 
-        public void setState(InputStream istream) {
+        public void setState(InputStream istream) throws Exception {
             events.append('s');
         }
 

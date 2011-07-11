@@ -635,7 +635,7 @@ public class JChannel extends Channel {
         if(initiateFlush)
             stopFlush();
 
-        if(result.hasException())
+        if(result != null && result.hasException())
             throw new StateTransferException("state transfer failed", result.getException());
         return true;
     }

@@ -430,28 +430,16 @@ public class FlushTest extends ChannelTestBase {
             return new byte[] { 'b', 'e', 'l', 'a' };
         }
 
-        public void getState(OutputStream ostream) {
+        public void getState(OutputStream ostream) throws Exception {
             super.getState(ostream);
             byte[] payload = new byte[] { 'b', 'e', 'l', 'a' };
-            try {
-                ostream.write(payload);
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                Util.close(ostream);
-            }
+            ostream.write(payload);
         }
 
-        public void setState(InputStream istream) {
+        public void setState(InputStream istream) throws Exception {
             super.setState(istream);
             byte[] payload = new byte[4];
-            try {
-                istream.read(payload);
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                Util.close(istream);
-            }
+            istream.read(payload);
         }
 
         protected void useChannel() throws Exception {

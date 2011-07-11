@@ -190,31 +190,33 @@ public class StateTransferTest extends ChannelTestBase {
             }
         }
 
-        public void getState(OutputStream ostream) {
+        public void getState(OutputStream ostream) throws Exception {
+            ObjectOutputStream out=null;
             synchronized(map) {
                 try {
-                    ObjectOutputStream out=new ObjectOutputStream(ostream);
+                    out=new ObjectOutputStream(ostream);
                     out.writeObject(map);
                     out.close();
                 }
-                catch(IOException e) {
-                    e.printStackTrace();
+                finally {
+                    Util.close(out);
                 }
             }
         }
 
         @SuppressWarnings("unchecked")
-        public void setState(InputStream istream) {
+        public void setState(InputStream istream) throws Exception {
+            ObjectInputStream in=null;
             synchronized(map) {
                 try {
-                    ObjectInputStream in=new ObjectInputStream(istream);
+                    in=new ObjectInputStream(istream);
                     Map<Object,Object> tmp=(Map<Object,Object>)in.readObject();
                     Util.close(in);
                     map.putAll(tmp);
                     log.info(channel.getAddress() + ": received state, map has " + map.size() + " elements");
                 }
-                catch(Exception e) {
-                    e.printStackTrace();
+                finally {
+                    Util.close(in);
                 }
             }
         }

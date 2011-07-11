@@ -574,7 +574,7 @@ public class ReplicatedHashMap<K extends Serializable, V extends Serializable> e
     }
 
 
-    public void getState(OutputStream ostream) {
+    public void getState(OutputStream ostream) throws Exception {
         K key;
         V val;
         HashMap<K,V> copy=new HashMap<K,V>();
@@ -589,27 +589,17 @@ public class ReplicatedHashMap<K extends Serializable, V extends Serializable> e
             oos=new ObjectOutputStream(new BufferedOutputStream(ostream, 1024));
             oos.writeObject(copy);
         }
-        catch(Throwable ex) {
-            if(log.isErrorEnabled())
-                log.error("exception marshalling state: " + ex);
-        }
         finally {
             Util.close(oos);
         }
     }
 
-    public void setState(InputStream istream) {
+    public void setState(InputStream istream) throws Exception {
         HashMap<K,V> new_copy=null;
         ObjectInputStream ois=null;
         try {
             ois=new ObjectInputStream(istream);
             new_copy=(HashMap<K,V>)ois.readObject();
-            ois.close();
-        }
-        catch(Throwable e) {
-            e.printStackTrace();
-            if(log.isErrorEnabled())
-                log.error("exception marshalling state: " + e);
         }
         finally {
             Util.close(ois);

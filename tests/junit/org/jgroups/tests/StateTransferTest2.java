@@ -98,30 +98,27 @@ public class StateTransferTest2 extends ChannelTestBase {
             }
         }
 
-        public void getState(OutputStream ostream) {
+        public void getState(OutputStream ostream) throws Exception {
             if(get_error)
                 throw new RuntimeException("[dummy failure] state could not be serialized");
             DataOutputStream out=new DataOutputStream(ostream);
             try {
                 Util.objectToStream(state_to_send, out);
             }
-            catch(Exception e) {
-                throw new RuntimeException("failed getting state", e);
-            }
             finally {
                 Util.close(out);
             }
         }
 
-        public void setState(InputStream istream) {
+        public void setState(InputStream istream) throws Exception {
             if(set_error)
                 throw new RuntimeException("[dummy failure] state could not be set");
             DataInputStream in=new DataInputStream(istream);
             try {
                 received_state=Util.objectFromStream(in);
             }
-            catch(Exception e) {
-                throw new RuntimeException("failed setting state", e);
+            finally {
+                Util.close(in);
             }
         }
 

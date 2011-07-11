@@ -422,7 +422,7 @@ public class ReconciliationTest extends ChannelTestBase {
             }
         }
 
-        public void getState(OutputStream ostream) {
+        public void getState(OutputStream ostream) throws Exception {
             ObjectOutputStream oos=null;
             try {
                 oos=new ObjectOutputStream(ostream);
@@ -431,21 +431,13 @@ public class ReconciliationTest extends ChannelTestBase {
                 }
                 oos.flush();
             }
-            catch(IOException e) {
-            }
             finally {
-                try {
-                    if(oos != null)
-                        oos.close();
-                }
-                catch(IOException e) {
-                    System.err.println(e);
-                }
+                Util.close(oos);
             }
         }
 
         @SuppressWarnings("unchecked")
-        public void setState(InputStream istream) {
+        public void setState(InputStream istream) throws Exception {
             ObjectInputStream ois=null;
             try {
                 ois=new ObjectInputStream(istream);
@@ -456,22 +448,8 @@ public class ReconciliationTest extends ChannelTestBase {
                 }
 
             }
-            catch(Exception e) {
-            }
             finally {
-                try {
-                    if(ois != null)
-                        ois.close();
-                }
-                catch(IOException e) {
-                    System.err.println(e);
-                }
-            }
-        }
-
-        public void clear() {
-            synchronized(data) {
-                data.clear();
+                Util.close(ois);
             }
         }
 

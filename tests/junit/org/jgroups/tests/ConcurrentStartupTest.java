@@ -180,7 +180,7 @@ public class ConcurrentStartupTest extends ChannelTestBase {
             }
         }
 
-        public void getState(OutputStream ostream) {
+        public void getState(OutputStream ostream) throws Exception {
             super.getState(ostream);
             ObjectOutputStream oos = null;
             try{
@@ -191,27 +191,24 @@ public class ConcurrentStartupTest extends ChannelTestBase {
                 }
                 oos.writeObject(tmp);
                 oos.flush();
-            }catch(IOException e){
-                e.printStackTrace();
-            }finally{
+            }
+            finally {
                 Util.close(oos);
             }
         }
 
         @SuppressWarnings("unchecked")
-        public void setState(InputStream istream) {
+        public void setState(InputStream istream) throws Exception {
             super.setState(istream);
             ObjectInputStream ois = null;
             try{
                 ois = new ObjectInputStream(istream);
                 List<Address> tmp = (List) ois.readObject();
                 synchronized(state){
-                    // state.clear();
+                    state.clear();
                     state.addAll(tmp);
                     log.info(channel.getAddress() + ": state is " + state);
                 }
-            }catch(Exception e){
-                e.printStackTrace();
             }finally{
                 Util.close(ois);
             }

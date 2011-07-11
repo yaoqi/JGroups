@@ -125,14 +125,13 @@ public class LargeStateTransferTest extends ChannelTestBase {
             return state;
         }
 
-        public void getState(OutputStream ostream){      
-            DataOutputStream out =null;
+        public void getState(OutputStream ostream) throws Exception {
+            DataOutputStream out=null;
             try{
                out=new DataOutputStream(ostream);
                out.writeInt(state.length);
                out.write(state, 0, state.length);
             }
-            catch (IOException e){}
             finally{
                Util.close(out);
             }
@@ -157,7 +156,7 @@ public class LargeStateTransferTest extends ChannelTestBase {
         public void setState(byte[] state) {
             promise.setResult(new Integer(state.length));
         }
-        public void setState(InputStream istream) {
+        public void setState(InputStream istream) throws Exception {
             DataInputStream in=null;
             int size=0;
             try {
@@ -166,7 +165,6 @@ public class LargeStateTransferTest extends ChannelTestBase {
                 byte[] stateReceived=new byte[size];
                 in.readFully(stateReceived, 0, stateReceived.length);
             }
-            catch (IOException e) {}
             finally {
                 Util.close(in);
             }
