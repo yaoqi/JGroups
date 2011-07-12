@@ -199,7 +199,7 @@ public abstract class StreamingStateTransfer extends Protocol {
                     Message state_req=new Message(target, null, null);
                     state_req.putHeader(this.id, new StateHeader(StateHeader.STATE_REQ));
                     if(log.isDebugEnabled())
-                        log.debug("asking " + target + " for state");
+                        log.debug(local_addr + ": asking " + target + " for state");
                     down_prot.down(new Event(Event.SUSPEND_STABLE, new Long(info.timeout)));
                     down_prot.down(new Event(Event.MSG, state_req));
                 }
@@ -367,7 +367,7 @@ public abstract class StreamingStateTransfer extends Protocol {
         if(!barrier_closed.compareAndSet(false, true))
             return;
         if(log.isTraceEnabled())
-            log.trace("sending down CLOSE_BARRIER and SUSPEND_STABLE");
+            log.trace(local_addr + ": sending down CLOSE_BARRIER and SUSPEND_STABLE");
         down_prot.down(new Event(Event.CLOSE_BARRIER));
         down_prot.down(new Event(Event.SUSPEND_STABLE));
     }
@@ -377,7 +377,7 @@ public abstract class StreamingStateTransfer extends Protocol {
         if(!barrier_closed.compareAndSet(true, false))
             return;
         if(log.isTraceEnabled())
-            log.trace("sending down OPEN_BARRIER and RESUME_STABLE");
+            log.trace(local_addr + ": sending down OPEN_BARRIER and RESUME_STABLE");
         down_prot.down(new Event(Event.OPEN_BARRIER));
         down_prot.down(new Event(Event.RESUME_STABLE));
     }
@@ -391,7 +391,7 @@ public abstract class StreamingStateTransfer extends Protocol {
             down(new Event(Event.MSG, eof_msg));
         }
         catch(Throwable t) {
-            log.error("failed sending EOF to " + requester);
+            log.error(local_addr + ": failed sending EOF to " + requester);
         }
     }
 
@@ -402,7 +402,7 @@ public abstract class StreamingStateTransfer extends Protocol {
             down(new Event(Event.MSG, ex_msg));
         }
         catch(Throwable t) {
-            log.error("failed sending exception " + exception.toString() + " to " + requester);
+            log.error(local_addr + ": failed sending exception " + exception.toString() + " to " + requester);
         }
     }
 
@@ -459,7 +459,7 @@ public abstract class StreamingStateTransfer extends Protocol {
     protected void handleStateReq(Address requester) {
         if(requester == null) {
             if(log.isErrorEnabled())
-                log.error("sender of STATE_REQ is null; ignoring state transfer request");
+                log.error(local_addr + ": sender of STATE_REQ is null; ignoring state transfer request");
             return;
         }
 
@@ -470,7 +470,7 @@ public abstract class StreamingStateTransfer extends Protocol {
         modifyStateResponseHeader(hdr);
         state_rsp.putHeader(this.id, hdr);
         if(log.isDebugEnabled())
-            log.debug("responding to state requester " + requester);
+            log.debug(local_addr + ": responding to state requester " + requester);
         down_prot.down(new Event(Event.MSG, state_rsp));
         if(stats)
             num_state_reqs.incrementAndGet();
@@ -611,7 +611,7 @@ public abstract class StreamingStateTransfer extends Protocol {
             }
             catch(Throwable e) {
                 if(log.isWarnEnabled())
-                    log.warn("calling setState() failed", e);
+                    log.warn(local_addr + ": calling setState() failed", e);
                 sendException(requester, e); // send the exception to the remote consumer
             }
             finally {

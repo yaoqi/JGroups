@@ -116,7 +116,7 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             socket.setReceiveBufferSize(buffer_size);
             Util.connect(socket, new InetSocketAddress(address.getIpAddress(), address.getPort()), 0);
             if(log.isDebugEnabled())
-                log.debug("connected to state provider " + address.getIpAddress() + ":" + address.getPort());
+                log.debug(local_addr + ": connected to state provider " + address.getIpAddress() + ":" + address.getPort());
 
             // write out our state_id and address
             ObjectOutputStream out=new ObjectOutputStream(socket.getOutputStream());
@@ -127,7 +127,7 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
         }
         catch(IOException e) {
             if(log.isWarnEnabled())
-                log.warn("state reader socket thread spawned abnormally", e);
+                log.warn(local_addr + ": state reader socket thread spawned abnormally", e);
             handleException(provider, e);
         }
         finally {
@@ -180,7 +180,7 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
         public void run() {
             runner=Thread.currentThread();
             if(log.isDebugEnabled())
-                log.debug("StateProviderAcceptor listening at " + getServerSocketAddress());
+                log.debug(local_addr + ": StateProviderAcceptor listening at " + getServerSocketAddress());
             while(running) {
                 try {
                     final Socket socket=serverSocket.accept();
@@ -204,7 +204,7 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             try {
                 socket.setSendBufferSize(buffer_size);
                 if(log.isDebugEnabled())
-                    log.debug("accepted request for state transfer from " + socket.getInetAddress() + ":" + socket.getPort());
+                    log.debug(local_addr + ": accepted request for state transfer from " + socket.getInetAddress() + ":" + socket.getPort());
 
                 ois=new ObjectInputStream(socket.getInputStream());
                 Address stateRequester=(Address)ois.readObject();
@@ -213,7 +213,7 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             }
             catch(Throwable e) {
                 if(log.isWarnEnabled())
-                    log.warn("failed connecting to state provider", e);
+                    log.warn(local_addr + ": failed connecting to state provider", e);
             }
             // getStateFromApplication() is run in the same thread; it closes the output stream, and we close the socket
             finally {

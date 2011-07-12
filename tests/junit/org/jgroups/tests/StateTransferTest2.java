@@ -1,15 +1,16 @@
 package org.jgroups.tests;
 
 import org.jgroups.*;
+import org.jgroups.protocols.pbcast.*;
+import org.jgroups.stack.Protocol;
+import org.jgroups.stack.ProtocolStack;
 import org.jgroups.util.Util;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 /**
  * Tests state transfer API (including exception handling)
@@ -17,47 +18,111 @@ import java.io.OutputStream;
  */
 @Test(groups=Global.STACK_DEPENDENT,sequential=true)
 public class StateTransferTest2 extends ChannelTestBase {
-    protected JChannel c1, c2;
 
-    @BeforeMethod protected void setup() throws Exception {
-        c1=createChannel(true, 2, "A");
-        c2=createChannel(c1, "B");
-        c1.connect("StateTransferTest2");
-        c2.connect("StateTransferTest2");
-        assert c2.getView().size() == 2 : "view of C2 is " + c2.getView();
-    }
 
-    @AfterMethod protected void destroy() {Util.close(c2,c1);}
+    protected class MyIterator implements Iterator<JChannel[]> {
+        protected final Class[] stream_transfer_prots;
+        protected int           index=0;
 
-    
-    public void testSuccessfulStateTransfer() throws ChannelException {
-        StateHandler sh1=new StateHandler("Bela", false, false),
-          sh2=new StateHandler(null, false, false);
-        c1.setReceiver(sh1);
-        c2.setReceiver(sh2);
-        boolean rc=c2.getState(null, 10000);
-        assert rc;
-        Object state=sh2.getReceivedState();
-        System.out.println("state = " + state);
-        assert state != null && state.equals("Bela");
-    }
+        public MyIterator(Class[] stream_transfer_prots) {
+            this.stream_transfer_prots=stream_transfer_prots;
+        }
 
-    public void testUnsuccessfulStateTransferFailureAtStateProvider() throws ChannelException {
-        StateHandler sh1=new StateHandler("Bela", true, false),
-          sh2=new StateHandler(null, false, false);
-        c1.setReceiver(sh1);
-        c2.setReceiver(sh2);
-        boolean rc=c2.getState(null, 10000);
-        assert !rc;
-        Object state=sh2.getReceivedState();
-        System.out.println("state = " + state);
-        assert state == null;
+        public boolean hasNext() {
+            return index < stream_transfer_prots.length;
+        }
+
+        public JChannel[] next() {
+            try {
+                Class next_class=stream_transfer_prots[index++];
+                System.out.println("State transfer protocol used: " + next_class);
+                return createStateProviderAndRequesterChannels(next_class);
+            }
+            catch(Exception e) {
+                throw new RuntimeException("failed creating a new channel", e);
+            }
+        }
+
+        public void remove() {
+        }
     }
 
 
-    public void testUnsuccessfulStateTransferFailureAtStateRequester() throws ChannelException {
-        StateHandler sh1=new StateHandler("Bela", false, false),
-          sh2=new StateHandler(null, false, true);
+    @DataProvider(name="createChannels")
+    protected Iterator<JChannel[]> createChannels() {
+        return new MyIterator(new Class[]{STATE_TRANSFER.class, STREAMING_STATE_TRANSFER.class,
+          STREAMING_STATE_TRANSFER_SOCKET.class});
+    }
+
+
+
+    protected JChannel[] createStateProviderAndRequesterChannels(Class state_transfer_class) throws Exception {
+        JChannel[] retval=new JChannel[2];
+        retval[0]=createChannel(true, 2, "Provider");
+        replaceStateTransferProtocolWith(retval[0], state_transfer_class);
+        retval[1]=createChannel(retval[0], "Requester");
+        for(JChannel ch: retval)
+            ch.connect("StateTransferTest2");
+        return retval;
+    }
+
+    protected void replaceStateTransferProtocolWith(JChannel ch, Class state_transfer_class) throws Exception {
+        ProtocolStack stack=ch.getProtocolStack();
+        if(stack.findProtocol(state_transfer_class) != null)
+            return; // protocol of the right class is already in stack
+        Protocol prot=stack.findProtocol(STATE_TRANSFER.class, StreamingStateTransfer.class);
+        Protocol new_state_transfer_protcol=(Protocol)state_transfer_class.newInstance();
+        if(prot != null) {
+            stack.replaceProtocol(prot, new_state_transfer_protcol);
+        }
+        else { // no state transfer protocol found in stack
+            Protocol flush=stack.findProtocol(FLUSH.class);
+            if(flush != null)
+                stack.insertProtocol(new_state_transfer_protcol, ProtocolStack.BELOW, FLUSH.class);
+            else
+                stack.insertProtocolAtTop(new_state_transfer_protcol);
+        }
+    }
+
+   
+    @Test(dataProvider="createChannels")
+    public void testSuccessfulStateTransfer(final JChannel c1, final JChannel c2) throws ChannelException {
+        try {
+            StateHandler sh1=new StateHandler("Bela", false, false), sh2=new StateHandler(null, false, false);
+            c1.setReceiver(sh1);
+            c2.setReceiver(sh2);
+            boolean rc=c2.getState(null, 10000);
+            assert rc;
+            Object state=sh2.getReceivedState();
+            System.out.println("state = " + state);
+            assert state != null && state.equals("Bela");
+        }
+        finally {
+            Util.close(c2, c1);
+        }
+    }
+
+    @Test(dataProvider="createChannels")
+    public void testUnsuccessfulStateTransferFailureAtStateProvider(final JChannel c1, final JChannel c2) throws ChannelException {
+        try {
+            StateHandler sh1=new StateHandler("Bela", true, false), sh2=new StateHandler(null, false, false);
+            c1.setReceiver(sh1);
+            c2.setReceiver(sh2);
+            boolean rc=c2.getState(null, 10000);
+            assert !rc;
+            Object state=sh2.getReceivedState();
+            System.out.println("state = " + state);
+            assert state == null;
+        }
+        finally {
+            Util.close(c2, c1);
+        }
+    }
+
+
+    @Test(dataProvider="createChannels")
+    public void testUnsuccessfulStateTransferFailureAtStateRequester(final JChannel c1, final JChannel c2) throws ChannelException {
+        StateHandler sh1=new StateHandler("Bela", false, false), sh2=new StateHandler(null, false, true);
         c1.setReceiver(sh1);
         c2.setReceiver(sh2);
         try {
@@ -67,6 +132,9 @@ public class StateTransferTest2 extends ChannelTestBase {
         catch(StateTransferException ste) {
             System.out.println("getState() threw a StateTransferException - as expected: " + ste);
         }
+        finally {
+            Util.close(c2, c1);
+        }
     }
 
 
@@ -74,8 +142,8 @@ public class StateTransferTest2 extends ChannelTestBase {
     protected static class StateHandler extends ReceiverAdapter {
         protected final boolean get_error;
         protected final boolean set_error;
-        protected final Object state_to_send;
-        protected       Object received_state=null;
+        protected final Object  state_to_send;
+        protected       Object  received_state=null;
 
         public StateHandler(Object state_to_send, boolean get_error, boolean set_error) {
             this.state_to_send=state_to_send;
@@ -101,13 +169,9 @@ public class StateTransferTest2 extends ChannelTestBase {
         public void getState(OutputStream ostream) throws Exception {
             if(get_error)
                 throw new RuntimeException("[dummy failure] state could not be serialized");
-            DataOutputStream out=new DataOutputStream(ostream);
-            try {
-                Util.objectToStream(state_to_send, out);
-            }
-            finally {
-                Util.close(out);
-            }
+            DataOutputStream out=new DataOutputStream(new BufferedOutputStream(ostream, 200));
+            Util.objectToStream(state_to_send, out);
+            out.flush();
         }
 
         public void setState(InputStream istream) throws Exception {
