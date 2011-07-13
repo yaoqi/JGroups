@@ -10,7 +10,6 @@ import org.testng.annotations.Test;
 
 import java.io.*;
 import java.util.Iterator;
-import java.util.NoSuchElementException;
 
 /**
  * Tests state transfer API (including exception handling)
@@ -54,6 +53,11 @@ public class StateTransferTest2 extends ChannelTestBase {
           STREAMING_STATE_TRANSFER_SOCKET.class});
     }
 
+    /*@DataProvider(name="createChannels")
+    protected Iterator<JChannel[]> createChannels() {
+        return new MyIterator(new Class[]{STATE_TRANSFER.class});
+    }*/
+
 
 
     protected JChannel[] createStateProviderAndRequesterChannels(Class state_transfer_class) throws Exception {
@@ -91,7 +95,7 @@ public class StateTransferTest2 extends ChannelTestBase {
             StateHandler sh1=new StateHandler("Bela", false, false), sh2=new StateHandler(null, false, false);
             c1.setReceiver(sh1);
             c2.setReceiver(sh2);
-            boolean rc=c2.getState(null, 10000);
+            boolean rc=c2.getState(null, 0);
             assert rc;
             Object state=sh2.getReceivedState();
             System.out.println("state = " + state);
@@ -108,8 +112,13 @@ public class StateTransferTest2 extends ChannelTestBase {
             StateHandler sh1=new StateHandler("Bela", true, false), sh2=new StateHandler(null, false, false);
             c1.setReceiver(sh1);
             c2.setReceiver(sh2);
-            boolean rc=c2.getState(null, 10000);
-            assert !rc;
+            try {
+                c2.getState(null, 0);
+                assert false : "we shouldn't get here; getState() should have thrown an exception";
+            }
+            catch(ChannelException ex) {
+                System.out.println("getState() threw an exception - as expected: " + ex);
+            }
             Object state=sh2.getReceivedState();
             System.out.println("state = " + state);
             assert state == null;
@@ -126,11 +135,11 @@ public class StateTransferTest2 extends ChannelTestBase {
         c1.setReceiver(sh1);
         c2.setReceiver(sh2);
         try {
-            c2.getState(null, 10000);
+            c2.getState(null, 0);
             assert false : "we shouldn't get here; getState() should have thrown an exception";
         }
         catch(StateTransferException ste) {
-            System.out.println("getState() threw a StateTransferException - as expected: " + ste);
+            System.out.println("getState() threw an exception - as expected: " + ste);
         }
         finally {
             Util.close(c2, c1);
