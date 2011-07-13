@@ -238,6 +238,8 @@ public abstract class StreamingStateTransfer extends Protocol {
                             handleStateChunk(sender, msg.getRawBuffer(), msg.getOffset(), msg.getLength());
                             break;
                         case StateHeader.STATE_EOF:
+                            if(log.isTraceEnabled())
+                                log.trace(local_addr + " <-- EOF <-- " + sender);
                             handleEOF(sender);
                             break;
 
@@ -291,11 +293,7 @@ public abstract class StreamingStateTransfer extends Protocol {
     }
 
     protected void handleEOF(Address sender) {
-        if(log.isTraceEnabled())
-            log.trace(local_addr + " <-- EOF <-- " + sender);
-        state_provider=null; // ??
-        openBarrierAndResumeStable();
-        up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult()));
+        state_provider=null;
     }
 
     protected void handleException(Address sender, Throwable exception) {
@@ -352,10 +350,11 @@ public abstract class StreamingStateTransfer extends Protocol {
         try {
             if(digest != null)
                 down_prot.down(new Event(Event.OVERWRITE_DIGEST, digest));
+            if(log.isTraceEnabled())
+                log.trace(local_addr + ": setting the state in the aplication");
             up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM, in));
-            /*if(closeStreamAfterSettingState())
-                handleEOF(provider);*/
             openBarrierAndResumeStable();
+            up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult()));
         }
         catch(Throwable t) {
             handleException(provider, t);
@@ -605,13 +604,15 @@ public abstract class StreamingStateTransfer extends Protocol {
 
         public void run() {
             try {
+                if(log.isTraceEnabled())
+                    log.trace(local_addr + ": getting the state from the application");
                 up_prot.up(new Event(Event.STATE_TRANSFER_OUTPUTSTREAM, output));
                 output.flush();
                 sendEof(requester); // send an EOF to the remote consumer
             }
             catch(Throwable e) {
                 if(log.isWarnEnabled())
-                    log.warn(local_addr + ": calling setState() failed", e);
+                    log.warn(local_addr + ": failed getting the state from the application", e);
                 sendException(requester, e); // send the exception to the remote consumer
             }
             finally {

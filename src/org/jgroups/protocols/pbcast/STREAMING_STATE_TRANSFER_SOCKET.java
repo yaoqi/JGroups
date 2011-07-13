@@ -99,9 +99,6 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             hdr.bind_addr=spawner.getServerSocketAddress();
     }
 
-    /*protected boolean closeStreamAfterSettingState() {
-        return false;
-    }*/
 
     protected void createStreamToRequester(Address requester) {
         ;
@@ -162,10 +159,9 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
 
     protected class StateProviderAcceptor implements Runnable {
         protected final ExecutorService pool;
-        protected final ServerSocket serverSocket;
-        protected final IpAddress address;
-        protected Thread runner;
-        protected volatile boolean running=true;
+        protected final ServerSocket    serverSocket;
+        protected final IpAddress       address;
+        protected volatile boolean      running=true;
 
         public StateProviderAcceptor(ExecutorService pool, ServerSocket stateServingSocket) {
             super();
@@ -178,7 +174,6 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
         public boolean   isRunning()              {return running;}
 
         public void run() {
-            runner=Thread.currentThread();
             if(log.isDebugEnabled())
                 log.debug(local_addr + ": StateProviderAcceptor listening at " + getServerSocketAddress());
             while(running) {
@@ -199,7 +194,7 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
         }
 
         protected void process(Socket socket) {
-            OutputStream output=null;
+            OutputStream      output=null;
             ObjectInputStream ois=null;
             try {
                 socket.setSendBufferSize(buffer_size);
@@ -213,7 +208,7 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             }
             catch(Throwable e) {
                 if(log.isWarnEnabled())
-                    log.warn(local_addr + ": failed connecting to state provider", e);
+                    log.warn(local_addr + ": failed handling request from requester", e);
             }
             // getStateFromApplication() is run in the same thread; it closes the output stream, and we close the socket
             finally {

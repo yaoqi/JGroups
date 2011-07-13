@@ -8,7 +8,6 @@ import org.jgroups.jmx.JmxConfigurator;
 import org.jgroups.util.Util;
 
 import javax.management.MBeanServer;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
@@ -33,13 +32,15 @@ public class LargeState extends ReceiverAdapter {
     boolean  rc=false;
     String   props;
     long     start, stop;
-    boolean  provider=true;
+    boolean  provider=true, provider_fails=false, requester_fails=false;
     int      size=100000;
     int      total_received=0;
 
 
-    public void start(boolean provider, int size, String props) throws Exception {
+    public void start(boolean provider, int size, String props, boolean provider_fails, boolean requester_fails) throws Exception {
         this.provider=provider;
+        this.provider_fails=provider_fails;
+        this.requester_fails=requester_fails;
         channel=new JChannel(props);
         channel.setReceiver(this);
         channel.connect("TestChannel");
@@ -89,6 +90,8 @@ public class LargeState extends ReceiverAdapter {
         if(state == null) {
             System.out.println("creating state of " + size + " bytes");
             state=createLargeState(size);
+            if(provider_fails)
+                throw new RuntimeException("booom - provider failed");
         }
         System.out.println("--> returning state: " + state.length + " bytes");
         return state;
@@ -98,6 +101,8 @@ public class LargeState extends ReceiverAdapter {
         stop=System.currentTimeMillis();
         if(state != null) {
             this.state=state;
+            if(requester_fails)
+                throw new RuntimeException("booom - requester failed");
             System.out.println("<-- Received byte[] state, size=" + Util.printBytes(state.length) + " (took " + (stop-start) + "ms)");
         }
     }
@@ -111,6 +116,8 @@ public class LargeState extends ReceiverAdapter {
             if(received < 0)
                 break;
             total_received+=received;
+            if(requester_fails)
+                throw new Exception("booom - requester failed");
         }
 
         stop=System.currentTimeMillis();
@@ -122,6 +129,8 @@ public class LargeState extends ReceiverAdapter {
         for(int i=0; i < 10; i++) {
             byte[] buf=new byte[frag_size];
             ostream.write(buf);
+            if(provider_fails)
+                throw new Exception("booom - provider failed");
         }
         int remaining=size - (10 * frag_size);
         if(remaining > 0) {
@@ -132,11 +141,9 @@ public class LargeState extends ReceiverAdapter {
 
 
     public static void main(String[] args) {
-        boolean provider=false;
+        boolean provider=false, provider_fails=false, requester_fails=false;
         int     size=1024 * 1024;
         String  props=null;
-
-
 
         for(int i=0; i < args.length; i++) {
             if("-help".equals(args[i])) {
@@ -145,6 +152,14 @@ public class LargeState extends ReceiverAdapter {
             }
             if("-provider".equals(args[i])) {
             	provider=true;
+                continue;
+            }
+            if("-provider_fails".equals(args[i])) {
+                provider_fails=true;
+                continue;
+            }
+            if("-requester_fails".equals(args[i])) {
+                requester_fails=true;
                 continue;
             }
             if("-size".equals(args[i])) {
@@ -161,7 +176,7 @@ public class LargeState extends ReceiverAdapter {
 
 
         try {
-            new LargeState().start(provider, size, props);
+            new LargeState().start(provider, size, props, provider_fails, requester_fails);
         }
         catch(Exception e) {
             e.printStackTrace();
@@ -169,7 +184,8 @@ public class LargeState extends ReceiverAdapter {
     }
 
     static void help() {
-        System.out.println("LargeState [-help] [-size <size of state in bytes] [-provider] [-props <properties>]");
+        System.out.println("LargeState [-help] [-size <size of state in bytes] [-provider] " +
+                             "[-props <properties>] [-provider_fails] [-requester_fails]");
     }
 
 }
