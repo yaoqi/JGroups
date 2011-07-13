@@ -8,7 +8,6 @@ import java.io.OutputStream;
  */
 public class ReceiverAdapter implements Receiver {
 
-    /** {@inheritDoc} */
     public void receive(Message msg) {
     }
 
@@ -19,15 +18,12 @@ public class ReceiverAdapter implements Receiver {
     public void setState(byte[] state) {
     }
 
-    /** {@inheritDoc} */
     public void getState(OutputStream ostream) throws Exception {
     }
 
-    /** {@inheritDoc} */
     public void setState(InputStream istream) throws Exception {
     }
 
-    /** {@inheritDoc} */
     public void viewAccepted(View view) {
     }
 

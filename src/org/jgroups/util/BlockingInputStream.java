@@ -53,8 +53,6 @@ public class BlockingInputStream extends InputStream {
 
 
 
-
-    /** {@inheritDoc} */
     public int read() throws IOException {
        /* byte[] buffer=new byte[1];
         int num=read(buffer, 0, 1);
@@ -87,12 +85,10 @@ public class BlockingInputStream extends InputStream {
     }
 
 
-    /** {@inheritDoc} */
     public int read(byte[] b) throws IOException {
         return read(b, 0, b.length);
     }
 
-    /** {@inheritDoc} */
     public int read(byte[] b, int off, int len) throws IOException {
         sanityCheck(b, off, len);
 
@@ -184,7 +180,6 @@ public class BlockingInputStream extends InputStream {
         throw new IOException("skip() not supported");
     }
 
-    /** {@inheritDoc} */
     public int available() throws IOException {
         lock.lock();
         try {

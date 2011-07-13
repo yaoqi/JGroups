@@ -259,7 +259,6 @@ public class JChannel extends Channel {
     }
 
 
-    /** {@inheritDoc} */
     @ManagedOperation(description="Connects the channel to a group")
     public synchronized void connect(String cluster_name) throws ChannelException {
     	connect(cluster_name,true);
@@ -302,7 +301,6 @@ public class JChannel extends Channel {
         notifyChannelConnected(this);
     }
 
-    /** {@inheritDoc} */
     public synchronized void connect(String cluster_name,
                                      Address target,
                                      long timeout) throws ChannelException {
@@ -396,7 +394,6 @@ public class JChannel extends Channel {
     }
 
 
-    /** {@inheritDoc} */
     @ManagedOperation(description="Disconnects the channel if connected")
     public synchronized void disconnect() {
         if(closed) return;
@@ -415,7 +412,6 @@ public class JChannel extends Channel {
     }
 
 
-    /** {@inheritDoc} */
     @ManagedOperation(description="Disconnects and destroys the channel")
     public synchronized void close() {
         _close(true); // by default disconnect before closing channel and close mq
@@ -424,19 +420,16 @@ public class JChannel extends Channel {
 
 
 
-    /** {@inheritDoc} */
     @ManagedAttribute public boolean isOpen() {
         return !closed;
     }
 
 
-    /** {@inheritDoc} */
     @ManagedAttribute public boolean isConnected() {
         return connected;
     }
 
 
-    /** {@inheritDoc} */
     @ManagedOperation
     public Map<String,Object> dumpStats() {
         Map<String,Object> retval=prot_stack.dumpStats();
@@ -467,7 +460,6 @@ public class JChannel extends Channel {
     }
 
 
-    /** {@inheritDoc} */
     @ManagedOperation
     public void send(Message msg) throws ChannelException {
         checkClosedOrNotConnected();
@@ -482,24 +474,20 @@ public class JChannel extends Channel {
     }
 
 
-    /** {@inheritDoc} */
     @ManagedOperation
     public void send(Address dst, Serializable obj) throws ChannelException {
         send(new Message(dst, null, obj));
     }
 
-    /** {@inheritDoc} */
     public void send(Address dst, byte[] buf) throws ChannelException {
         send(new Message(dst, null, buf));
     }
 
-    /** {@inheritDoc} */
     public void send(Address dst, byte[] buf, int offset, int length) throws ChannelException {
         send(new Message(dst, null, buf, offset, length));
     }
 
 
-    /** {@inheritDoc} */
     public View getView() {
         return closed || !connected ? null : my_view;
     }
@@ -516,7 +504,6 @@ public class JChannel extends Channel {
     }
 
 
-    /** {@inheritDoc} */
     public Address getAddress() {
         return closed ? null : local_addr;
     }
@@ -531,17 +518,14 @@ public class JChannel extends Channel {
         return local_addr instanceof UUID? ((UUID)local_addr).toStringLong() : null;
     }
 
-    /** {@inheritDoc} */
     public String getName() {
         return name;
     }
 
-    /** {@inheritDoc} */
     public String getName(Address member) {
         return member != null? UUID.get(member) : null;
     }
 
-    /** {@inheritDoc} */
     @ManagedAttribute(writable=true, description="The logical name of this channel. Stays with the channel until " +
             "the channel is closed")
     public void setName(String name) {
@@ -552,7 +536,6 @@ public class JChannel extends Channel {
         }
     }
 
-    /** {@inheritDoc} */
     @ManagedAttribute(description="Returns cluster name this channel is connected to")
     public String getClusterName() {
         return closed ? null : !connected ? null : cluster_name;
@@ -578,9 +561,6 @@ public class JChannel extends Channel {
     }
 
 
-    /**
-     * {@inheritDoc}
-     */
     public boolean getState(Address target, long timeout) throws ChannelException {
         return getState(target, timeout, true);
     }
@@ -1004,7 +984,6 @@ public class JChannel extends Channel {
         return flush_supported;
     }
 
-    /** {@inheritDoc} */
     public boolean startFlush(boolean automatic_resume) {
         if(!flushSupported()) {
             throw new IllegalStateException("Flush is not supported, add pbcast.FLUSH protocol to your configuration");
@@ -1017,7 +996,6 @@ public class JChannel extends Channel {
         return successfulFlush;              
     }
 
-    /** {@inheritDoc} */
     public boolean startFlush(List<Address> flushParticipants,boolean automatic_resume) {
         boolean successfulFlush;
         if(!flushSupported()){
@@ -1038,8 +1016,7 @@ public class JChannel extends Channel {
         return successfulFlush;              
     }
     
-    /** {@inheritDoc} */
-    public boolean startFlush(long timeout, boolean automatic_resume) {        
+    public boolean startFlush(long timeout, boolean automatic_resume) {
         return startFlush(automatic_resume);       
     }
 

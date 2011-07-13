@@ -446,11 +446,8 @@ public class MessageDispatcher implements RequestHandler {
 
                 case Event.STATE_TRANSFER_OUTPUTSTREAM:
                     OutputStream os=(OutputStream)evt.getArg();
-                    if(msg_listener != null) {
-                        if(os != null)
-                            msg_listener.getState(os);
-                        return new StateTransferInfo(null, os);
-                    }
+                    if(msg_listener != null && os != null)
+                        msg_listener.getState(os);
                     break;
 
                 case Event.STATE_TRANSFER_INPUTSTREAM:
