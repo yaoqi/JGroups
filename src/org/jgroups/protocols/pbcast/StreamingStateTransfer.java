@@ -192,7 +192,7 @@ public abstract class StreamingStateTransfer extends Protocol {
                 if(target == null) {
                     if(log.isDebugEnabled())
                         log.debug("first member (no state)");
-                    up_prot.up(new Event(Event.GET_STATE_OK, new StateTransferInfo()));
+                    up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult()));
                 }
                 else {
                     state_provider=target;
@@ -244,7 +244,7 @@ public abstract class StreamingStateTransfer extends Protocol {
                             break;
 
                         case StateHeader.STATE_EX:
-                            handleException(sender, (Throwable)msg.getObject());
+                            handleException((Throwable)msg.getObject());
                             break;
 
                         default:
@@ -296,7 +296,7 @@ public abstract class StreamingStateTransfer extends Protocol {
         state_provider=null;
     }
 
-    protected void handleException(Address sender, Throwable exception) {
+    protected void handleException(Throwable exception) {
         state_provider=null; // ??
         openBarrierAndResumeStable();
         up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult(exception)));
@@ -357,13 +357,13 @@ public abstract class StreamingStateTransfer extends Protocol {
             up_prot.up(new Event(Event.STATE_TRANSFER_INPUTSTREAM_CLOSED, new StateTransferResult()));
         }
         catch(Throwable t) {
-            handleException(provider, t);
+            handleException(t);
         }
     }
 
     @ManagedOperation(description="Closes BARRIER and suspends STABLE")
     public void closeBarrierAndSuspendStable() {
-        if(!barrier_closed.compareAndSet(false, true))
+        if(!isDigestNeeded() || !barrier_closed.compareAndSet(false, true))
             return;
         if(log.isTraceEnabled())
             log.trace(local_addr + ": sending down CLOSE_BARRIER and SUSPEND_STABLE");
@@ -373,7 +373,7 @@ public abstract class StreamingStateTransfer extends Protocol {
 
     @ManagedOperation(description="Opens BARRIER and resumes STABLE")
     public void openBarrierAndResumeStable() {
-        if(!barrier_closed.compareAndSet(true, false))
+        if(!isDigestNeeded() || !barrier_closed.compareAndSet(true, false))
             return;
         if(log.isTraceEnabled())
             log.trace(local_addr + ": sending down OPEN_BARRIER and RESUME_STABLE");

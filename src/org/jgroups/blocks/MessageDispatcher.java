@@ -418,14 +418,13 @@ public class MessageDispatcher implements RequestHandler {
                     break;
 
                 case Event.GET_APPLSTATE: // reply with GET_APPLSTATE_OK
-                    StateTransferInfo info=(StateTransferInfo)evt.getArg();
                     byte[] tmp_state=null;
                     if(msg_listener != null) {
                         try {
                             tmp_state=msg_listener.getState();
                         }
                         catch(Throwable t) {
-                            this.log.error("failed getting state from message listener (" + msg_listener + ')', t);
+                            throw new Exception("failed getting state from message listener (" + msg_listener + ')', t);
                         }
                     }
                     return new StateTransferInfo(null, 0L, tmp_state);
@@ -433,13 +432,11 @@ public class MessageDispatcher implements RequestHandler {
                 case Event.GET_STATE_OK:
                     if(msg_listener != null) {
                         try {
-                            info=(StateTransferInfo)evt.getArg();
-                            msg_listener.setState(info.state);
+                            StateTransferResult result=(StateTransferResult)evt.getArg();
+                            msg_listener.setState(result.getBuffer());
                         }
-                        catch(ClassCastException cast_ex) {
-                            if(this.log.isErrorEnabled())
-                                this.log.error("received SetStateEvent, but argument " +
-                                        evt.getArg() + " is not serializable. Discarding message.");
+                        catch(Throwable t) {
+                            throw new RuntimeException("failed calling setState() in state requester", t);
                         }
                     }
                     break;
@@ -472,9 +469,8 @@ public class MessageDispatcher implements RequestHandler {
                     break;
 
                 case Event.SUSPECT:
-                    if(membership_listener != null) {
+                    if(membership_listener != null)
                         membership_listener.suspect((Address) evt.getArg());
-                    }
                     break;
 
                 case Event.BLOCK:

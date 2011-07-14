@@ -125,7 +125,7 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
         catch(IOException e) {
             if(log.isWarnEnabled())
                 log.warn(local_addr + ": state reader socket thread spawned abnormally", e);
-            handleException(provider, e);
+            handleException(e);
         }
         finally {
             Util.close(bis);

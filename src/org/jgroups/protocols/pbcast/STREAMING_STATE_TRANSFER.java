@@ -66,9 +66,9 @@ public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
         super.handleEOF(sender);
     }
 
-    protected void handleException(Address sender, Throwable exception) {
+    protected void handleException(Throwable exception) {
         Util.close(input_stream);
-        super.handleException(sender, exception);
+        super.handleException(exception);
     }
 
     protected void handleStateChunk(Address sender, byte[] buffer, int offset, int length) {
@@ -80,7 +80,7 @@ public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
             input_stream.write(buffer, offset, length);
         }
         catch(IOException e) {
-            handleException(sender, e);
+            handleException(e);
         }
     }
 

@@ -19,74 +19,18 @@ import java.util.Iterator;
 public class StateTransferTest2 extends ChannelTestBase {
 
 
-    protected class MyIterator implements Iterator<JChannel[]> {
-        protected final Class[] stream_transfer_prots;
-        protected int           index=0;
-
-        public MyIterator(Class[] stream_transfer_prots) {
-            this.stream_transfer_prots=stream_transfer_prots;
-        }
-
-        public boolean hasNext() {
-            return index < stream_transfer_prots.length;
-        }
-
-        public JChannel[] next() {
-            try {
-                Class next_class=stream_transfer_prots[index++];
-                System.out.println("State transfer protocol used: " + next_class);
-                return createStateProviderAndRequesterChannels(next_class);
-            }
-            catch(Exception e) {
-                throw new RuntimeException("failed creating a new channel", e);
-            }
-        }
-
-        public void remove() {
-        }
-    }
-
+    /*@DataProvider(name="createChannels")
+    protected Iterator<JChannel[]> createChannels() {
+        return new MyIterator(new Class[]{STATE_TRANSFER.class, STREAMING_STATE_TRANSFER.class,
+          STREAMING_STATE_TRANSFER_SOCKET.class});
+    }*/
 
     @DataProvider(name="createChannels")
     protected Iterator<JChannel[]> createChannels() {
-        return new MyIterator(new Class[]{STREAMING_STATE_TRANSFER.class,
-          STREAMING_STATE_TRANSFER_SOCKET.class});
-    }
-
-    /*@DataProvider(name="createChannels")
-    protected Iterator<JChannel[]> createChannels() {
         return new MyIterator(new Class[]{STATE_TRANSFER.class});
-    }*/
-
-
-
-    protected JChannel[] createStateProviderAndRequesterChannels(Class state_transfer_class) throws Exception {
-        JChannel[] retval=new JChannel[2];
-        retval[0]=createChannel(true, 2, "Provider");
-        replaceStateTransferProtocolWith(retval[0], state_transfer_class);
-        retval[1]=createChannel(retval[0], "Requester");
-        for(JChannel ch: retval)
-            ch.connect("StateTransferTest2");
-        return retval;
     }
 
-    protected void replaceStateTransferProtocolWith(JChannel ch, Class state_transfer_class) throws Exception {
-        ProtocolStack stack=ch.getProtocolStack();
-        if(stack.findProtocol(state_transfer_class) != null)
-            return; // protocol of the right class is already in stack
-        Protocol prot=stack.findProtocol(STATE_TRANSFER.class, StreamingStateTransfer.class);
-        Protocol new_state_transfer_protcol=(Protocol)state_transfer_class.newInstance();
-        if(prot != null) {
-            stack.replaceProtocol(prot, new_state_transfer_protcol);
-        }
-        else { // no state transfer protocol found in stack
-            Protocol flush=stack.findProtocol(FLUSH.class);
-            if(flush != null)
-                stack.insertProtocol(new_state_transfer_protcol, ProtocolStack.BELOW, FLUSH.class);
-            else
-                stack.insertProtocolAtTop(new_state_transfer_protcol);
-        }
-    }
+
 
    
     @Test(dataProvider="createChannels")
@@ -146,6 +90,64 @@ public class StateTransferTest2 extends ChannelTestBase {
         }
     }
 
+
+
+    protected class MyIterator implements Iterator<JChannel[]> {
+        protected final Class[] stream_transfer_prots;
+        protected int           index=0;
+
+        public MyIterator(Class[] stream_transfer_prots) {
+            this.stream_transfer_prots=stream_transfer_prots;
+        }
+
+        public boolean hasNext() {
+            return index < stream_transfer_prots.length;
+        }
+
+        public JChannel[] next() {
+            try {
+                Class next_class=stream_transfer_prots[index++];
+                System.out.println("State transfer protocol used: " + next_class);
+                return createStateProviderAndRequesterChannels(next_class);
+            }
+            catch(Exception e) {
+                throw new RuntimeException("failed creating a new channel", e);
+            }
+        }
+
+        public void remove() {
+        }
+
+
+
+        protected JChannel[] createStateProviderAndRequesterChannels(Class state_transfer_class) throws Exception {
+            JChannel[] retval=new JChannel[2];
+            retval[0]=createChannel(true, 2, "Provider");
+            replaceStateTransferProtocolWith(retval[0], state_transfer_class);
+            retval[1]=createChannel(retval[0], "Requester");
+            for(JChannel ch: retval)
+                ch.connect("StateTransferTest2");
+            return retval;
+        }
+
+        protected void replaceStateTransferProtocolWith(JChannel ch, Class state_transfer_class) throws Exception {
+            ProtocolStack stack=ch.getProtocolStack();
+            if(stack.findProtocol(state_transfer_class) != null)
+                return; // protocol of the right class is already in stack
+            Protocol prot=stack.findProtocol(STATE_TRANSFER.class, StreamingStateTransfer.class);
+            Protocol new_state_transfer_protcol=(Protocol)state_transfer_class.newInstance();
+            if(prot != null) {
+                stack.replaceProtocol(prot, new_state_transfer_protcol);
+            }
+            else { // no state transfer protocol found in stack
+                Protocol flush=stack.findProtocol(FLUSH.class);
+                if(flush != null)
+                    stack.insertProtocol(new_state_transfer_protcol, ProtocolStack.BELOW, FLUSH.class);
+                else
+                    stack.insertProtocolAtTop(new_state_transfer_protcol);
+            }
+        }
+    }
 
 
     protected static class StateHandler extends ReceiverAdapter {

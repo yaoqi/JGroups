@@ -672,27 +672,30 @@ public class JChannel extends Channel {
                 break;
                 
             case Event.GET_STATE_OK:
-                StateTransferInfo state_info=(StateTransferInfo)evt.getArg();
-                byte[] state=state_info.state;
-
-                try {
-                    if(up_handler != null)
-                        return up_handler.up(evt);
-
-                    if(state != null && receiver != null) {
-                        try {
-                            receiver.setState(state);
-                        }
-                        catch(Throwable t) {
-                            if(log.isWarnEnabled())
-                                log.warn("failed calling setState() in receiver", t);
-                        }
+                StateTransferResult result=(StateTransferResult)evt.getArg();
+                if(up_handler != null) {
+                    try {
+                        Object retval=up_handler.up(evt);
+                        state_promise.setResult(result);
+                        return retval;
+                    }
+                    catch(Throwable t) {
+                        state_promise.setResult(new StateTransferResult(t));
                     }
                 }
-                finally {
-                    state_promise.setResult(new StateTransferResult(state));
+
+                byte[] state=result.getBuffer();
+                if(receiver != null) {
+                    try {
+                        receiver.setState(state);
+                        state_promise.setResult(result);
+                    }
+                    catch(Throwable t) {
+                        state_promise.setResult(new StateTransferResult(t));
+                    }
                 }
                 break;
+
             case Event.STATE_TRANSFER_INPUTSTREAM_CLOSED:
                 state_promise.setResult((StateTransferResult)evt.getArg());
                 break;
@@ -788,7 +791,8 @@ public class JChannel extends Channel {
                 break;
             case Event.GET_APPLSTATE:
                 byte[] tmp_state=null;
-                tmp_state=receiver.getState();
+                if(receiver != null)
+                    tmp_state=receiver.getState();
                 return new StateTransferInfo(null, 0L, tmp_state);
             case Event.BLOCK:
                 receiver.block();
