@@ -17,10 +17,7 @@ import org.jgroups.stack.StateTransferInfo;
 import org.jgroups.util.*;
 import org.w3c.dom.Element;
 
-import java.io.File;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.lang.reflect.Method;
 import java.net.DatagramSocket;
 import java.net.ServerSocket;
@@ -676,7 +673,7 @@ public class JChannel extends Channel {
                 if(up_handler != null) {
                     try {
                         Object retval=up_handler.up(evt);
-                        state_promise.setResult(result);
+                        state_promise.setResult(new StateTransferResult());
                         return retval;
                     }
                     catch(Throwable t) {
@@ -687,8 +684,9 @@ public class JChannel extends Channel {
                 byte[] state=result.getBuffer();
                 if(receiver != null) {
                     try {
-                        receiver.setState(state);
-                        state_promise.setResult(result);
+                        ByteArrayInputStream input=new ByteArrayInputStream(state);
+                        receiver.setState(input);
+                        state_promise.setResult(new StateTransferResult());
                     }
                     catch(Throwable t) {
                         state_promise.setResult(new StateTransferResult(t));
@@ -791,8 +789,16 @@ public class JChannel extends Channel {
                 break;
             case Event.GET_APPLSTATE:
                 byte[] tmp_state=null;
-                if(receiver != null)
-                    tmp_state=receiver.getState();
+                if(receiver != null) {
+                    ByteArrayOutputStream output=new ByteArrayOutputStream(1024);
+                    try {
+                        receiver.getState(output);
+                        tmp_state=output.toByteArray();
+                    }
+                    catch(Exception e) {
+                        throw new RuntimeException(local_addr + ": failed getting state from application", e);
+                    }
+                }
                 return new StateTransferInfo(null, 0L, tmp_state);
             case Event.BLOCK:
                 receiver.block();

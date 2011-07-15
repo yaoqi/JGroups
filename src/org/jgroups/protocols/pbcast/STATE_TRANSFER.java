@@ -23,8 +23,10 @@ import java.util.concurrent.atomic.AtomicLong;
  * current digest and asks the application for a copy of its current state S.
  * Then the member returns both S and D to the requester. The requester first
  * sets its digest to D and then returns the state to the application.
- * 
  * @author Bela Ban
+ * @see STREAMING_STATE_TRANSFER
+ * @see STREAMING_STATE_TRANSFER_SOCKET
+ * @deprecated Use STREAMING_STATE_TRANSFER or STREAMING_STATE_TRANSFER_SOCKET instead
  */
 @MBean(description="State transfer protocol based on byte array transfer")
 public class STATE_TRANSFER extends Protocol {
@@ -254,53 +256,7 @@ public class STATE_TRANSFER extends Protocol {
         return !flushProtocolInStack;
     }
 
-    private void requestApplicationStates(Address requester, Digest digest, boolean open_barrier) {
-        List<StateTransferInfo> responses=new LinkedList<StateTransferInfo>();
-        StateTransferInfo info=new StateTransferInfo(requester, 0L, null);
-        StateTransferInfo rsp=(StateTransferInfo)up_prot.up(new Event(Event.GET_APPLSTATE, info));
-        responses.add(rsp);
-        if(open_barrier)
-            down_prot.down(new Event(Event.OPEN_BARRIER));
-        for(StateTransferInfo resp: responses) {
-            sendApplicationStateResponse(resp, digest);
-        }
-    }
 
-    private void sendApplicationStateResponse(StateTransferInfo rsp, Digest digest) {
-        byte[] state=rsp.state;
-        List<Message> responses=new LinkedList<Message>();
-
-        synchronized(state_requesters) {
-            if(state_requesters.isEmpty()) {
-                if(log.isWarnEnabled())
-                    log.warn(local_addr + ": received application state, but there are no requesters !");
-                return;
-            }
-            if(stats) {
-                num_state_reqs.incrementAndGet();
-                if(state != null)
-                    num_bytes_sent.addAndGet(state.length);
-                avg_state_size=num_bytes_sent.doubleValue() / num_state_reqs.doubleValue();
-            }
-
-            for(Address requester: state_requesters) {
-                Message state_rsp=new Message(requester, null, state);
-                StateHeader hdr=new StateHeader(StateHeader.STATE_RSP, digest);
-                state_rsp.putHeader(this.id, hdr);
-                responses.add(state_rsp);
-            }
-            state_requesters.clear();
-        }
-
-        for(Message state_rsp:responses) {
-            if(log.isTraceEnabled()) {
-                int length=state != null? state.length : 0;
-                if(log.isTraceEnabled())
-                    log.trace(local_addr + ": sending state to " + state_rsp.getDest() + " (size=" + Util.printBytes(length) + ")");
-            }
-            down_prot.down(new Event(Event.MSG, state_rsp));
-        }
-    }
 
     /**
      * Return the first element of members which is not me. Otherwise return null.
@@ -339,8 +295,7 @@ public class STATE_TRANSFER extends Protocol {
                 log.warn(local_addr + ": discovered that the state provider (" + old_coord + ") left");
             waiting_for_state_response=false;
             Exception ex=new EOFException("state provider " + old_coord + " left");
-            StateTransferResult result=new StateTransferResult(ex);
-            up_prot.up(new Event(Event.GET_STATE_OK, result));
+            up_prot.up(new Event(Event.GET_STATE_OK, new StateTransferResult(ex)));
             openBarrierAndResumeStable();
         }
 

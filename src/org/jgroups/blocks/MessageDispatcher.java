@@ -10,9 +10,7 @@ import org.jgroups.stack.Protocol;
 import org.jgroups.stack.StateTransferInfo;
 import org.jgroups.util.*;
 
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.util.*;
 
 
@@ -421,7 +419,9 @@ public class MessageDispatcher implements RequestHandler {
                     byte[] tmp_state=null;
                     if(msg_listener != null) {
                         try {
-                            tmp_state=msg_listener.getState();
+                            ByteArrayOutputStream output=new ByteArrayOutputStream(1024);
+                            msg_listener.getState(output);
+                            tmp_state=output.toByteArray();
                         }
                         catch(Throwable t) {
                             throw new Exception("failed getting state from message listener (" + msg_listener + ')', t);
@@ -433,7 +433,8 @@ public class MessageDispatcher implements RequestHandler {
                     if(msg_listener != null) {
                         try {
                             StateTransferResult result=(StateTransferResult)evt.getArg();
-                            msg_listener.setState(result.getBuffer());
+                            ByteArrayInputStream input=new ByteArrayInputStream(result.getBuffer());
+                            msg_listener.setState(input);
                         }
                         catch(Throwable t) {
                             throw new RuntimeException("failed calling setState() in state requester", t);
