@@ -317,9 +317,9 @@ public class STATE_TRANSFER extends Protocol {
     }
 
     private void handleViewChange(View v) {
-        Address old_coord;
+        Address       old_coord;
         List<Address> new_members=v.getMembers();
-        boolean send_up_null_state_rsp=false;
+        boolean       send_up_exception=false;
 
         synchronized(members) {
             old_coord=(!members.isEmpty()? members.get(0) : null);
@@ -330,19 +330,19 @@ public class STATE_TRANSFER extends Protocol {
             // Note this only takes a coordinator crash into account, a getState(target, timeout), where target is not
             // null is not handled ! (Usually we get the state from the coordinator)
             // http://jira.jboss.com/jira/browse/JGRP-148
-            if(waiting_for_state_response && old_coord != null && !members.contains(old_coord)) {
-                send_up_null_state_rsp=true;
-            }
+            if(waiting_for_state_response && old_coord != null && !members.contains(old_coord))
+                send_up_exception=true;
         }
 
-        if(send_up_null_state_rsp) {
+        if(send_up_exception) {
             if(log.isWarnEnabled())
-                log.warn(local_addr + ": discovered that the state provider (" + old_coord
-                           + ") left; returning null state to application");
-            StateHeader hdr=new StateHeader(StateHeader.STATE_RSP, null);
-            handleStateRsp(hdr, null); // sends up null GET_STATE_OK
+                log.warn(local_addr + ": discovered that the state provider (" + old_coord + ") left");
+            waiting_for_state_response=false;
+            Exception ex=new EOFException("state provider " + old_coord + " left");
+            StateTransferResult result=new StateTransferResult(ex);
+            up_prot.up(new Event(Event.GET_STATE_OK, result));
+            openBarrierAndResumeStable();
         }
-
 
         synchronized(state_requesters) {
             boolean was_empty=state_requesters.isEmpty();

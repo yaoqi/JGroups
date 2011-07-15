@@ -35,12 +35,15 @@ public class LargeState extends ReceiverAdapter {
     boolean  provider=true, provider_fails=false, requester_fails=false;
     int      size=100000;
     int      total_received=0;
+    long     delay=0;
 
 
-    public void start(boolean provider, int size, String props, boolean provider_fails, boolean requester_fails) throws Exception {
+    public void start(boolean provider, int size, String props, boolean provider_fails,
+                      boolean requester_fails, long delay) throws Exception {
         this.provider=provider;
         this.provider_fails=provider_fails;
         this.requester_fails=requester_fails;
+        this.delay=delay;
         channel=new JChannel(props);
         channel.setReceiver(this);
         channel.connect("TestChannel");
@@ -58,11 +61,9 @@ public class LargeState extends ReceiverAdapter {
                 Util.sleep(10000);
             }
         }
-        System.out.println("Getting state");
         start=System.currentTimeMillis();
         try {
-            rc=channel.getState(null, 0);
-            System.out.println("getState(), rc=" + rc);
+            channel.getState(null, 0);
         }
         catch(Exception ex) {
             ex.printStackTrace();
@@ -88,12 +89,14 @@ public class LargeState extends ReceiverAdapter {
 
     public byte[] getState() {
         if(state == null) {
-            System.out.println("creating state of " + size + " bytes");
+            System.out.println("creating state of " + Util.printBytes(size));
             state=createLargeState(size);
-            if(provider_fails)
-                throw new RuntimeException("booom - provider failed");
         }
-        System.out.println("--> returning state: " + state.length + " bytes");
+        if(delay > 0)
+            Util.sleep(delay);
+        if(provider_fails)
+            throw new RuntimeException("booom - provider failed");
+        System.out.println("--> returning " + Util.printBytes(state.length));
         return state;
     }
 
@@ -103,7 +106,7 @@ public class LargeState extends ReceiverAdapter {
             this.state=state;
             if(requester_fails)
                 throw new RuntimeException("booom - requester failed");
-            System.out.println("<-- Received byte[] state, size=" + Util.printBytes(state.length) + " (took " + (stop-start) + "ms)");
+            System.out.println("<-- received " + Util.printBytes(state.length) + " in " + (stop-start) + "ms");
         }
     }
 
@@ -115,28 +118,36 @@ public class LargeState extends ReceiverAdapter {
             received=istream.read(buf);
             if(received < 0)
                 break;
+            if(delay > 0)
+                Util.sleep(delay);
             total_received+=received;
             if(requester_fails)
                 throw new Exception("booom - requester failed");
         }
 
         stop=System.currentTimeMillis();
-        System.out.println("<-- Received stream state, size=" + Util.printBytes(total_received) + " (took " + (stop-start) + "ms)");
+        System.out.println("<-- received " + Util.printBytes(total_received) + " in " + (stop-start) + "ms");
     }
 
     public void getState(OutputStream ostream) throws Exception {
         int frag_size=size / 10;
+        long bytes=0;
         for(int i=0; i < 10; i++) {
             byte[] buf=new byte[frag_size];
             ostream.write(buf);
+            bytes+=buf.length;
             if(provider_fails)
                 throw new Exception("booom - provider failed");
+            if(delay > 0)
+                Util.sleep(delay);
         }
         int remaining=size - (10 * frag_size);
         if(remaining > 0) {
             byte[] buf=new byte[remaining];
             ostream.write(buf);
+            bytes+=buf.length;
         }
+        System.out.println("--> wrote " + Util.printBytes(bytes));
     }
 
 
@@ -144,6 +155,7 @@ public class LargeState extends ReceiverAdapter {
         boolean provider=false, provider_fails=false, requester_fails=false;
         int     size=1024 * 1024;
         String  props=null;
+        long delay=0;
 
         for(int i=0; i < args.length; i++) {
             if("-help".equals(args[i])) {
@@ -170,13 +182,17 @@ public class LargeState extends ReceiverAdapter {
                 props=args[++i];
                 continue;
             }
+            if("-delay".equals(args[i])) {
+                delay=Long.parseLong(args[++i]);
+                continue;
+            }
             help();
             return;
         }
 
 
         try {
-            new LargeState().start(provider, size, props, provider_fails, requester_fails);
+            new LargeState().start(provider, size, props, provider_fails, requester_fails, delay);
         }
         catch(Exception e) {
             e.printStackTrace();
@@ -185,7 +201,7 @@ public class LargeState extends ReceiverAdapter {
 
     static void help() {
         System.out.println("LargeState [-help] [-size <size of state in bytes] [-provider] " +
-                             "[-props <properties>] [-provider_fails] [-requester_fails]");
+                             "[-props <properties>] [-provider_fails] [-requester_fails] [-delay <ms>]");
     }
 
 }
