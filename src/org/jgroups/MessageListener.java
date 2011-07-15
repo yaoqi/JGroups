@@ -13,16 +13,7 @@ public interface MessageListener {
 	 * @param msg
 	 */
     void          receive(Message msg);
-    /**
-     * Answers the group state; e.g., when joining.
-     * @return byte[] 
-     */
-    byte[]        getState();
-    /**
-     * Sets the group state; e.g., when joining.
-     * @param state
-     */
-    void          setState(byte[] state);
+
 
     /**
      * Allows an application to write a state through a provided OutputStream. When done, the OutputStream doesn't need

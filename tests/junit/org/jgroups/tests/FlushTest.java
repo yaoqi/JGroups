@@ -7,7 +7,6 @@ import org.jgroups.protocols.pbcast.FLUSH;
 import org.jgroups.util.Util;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -425,10 +424,6 @@ public class FlushTest extends ChannelTestBase {
             return events.toString();
         }
 
-        public byte[] getState() {
-            events.append('g');
-            return new byte[] { 'b', 'e', 'l', 'a' };
-        }
 
         public void getState(OutputStream ostream) throws Exception {
             super.getState(ostream);

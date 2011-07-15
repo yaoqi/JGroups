@@ -121,23 +121,8 @@ public class LargeStateTransferTest extends ChannelTestBase {
             state=new byte[size];
         }
 
-        public byte[] getState() {
-            return state;
-        }
-
         public void getState(OutputStream ostream) throws Exception {
-            DataOutputStream out=null;
-            try{
-               out=new DataOutputStream(ostream);
-               out.writeInt(state.length);
-               out.write(state, 0, state.length);
-            }
-            finally{
-               Util.close(out);
-            }
-        }
-        public void setState(byte[] state) {
-            throw new UnsupportedOperationException("not implemented by provider");
+            Util.objectToStream(state, new DataOutputStream(ostream));
         }
     }
 
@@ -149,13 +134,7 @@ public class LargeStateTransferTest extends ChannelTestBase {
             this.promise=p;
         }
 
-        public byte[] getState() {
-            throw new UnsupportedOperationException("not implemented by requester");
-        }
 
-        public void setState(byte[] state) {
-            promise.setResult(new Integer(state.length));
-        }
         public void setState(InputStream istream) throws Exception {
             DataInputStream in=null;
             int size=0;

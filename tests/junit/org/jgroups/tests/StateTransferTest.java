@@ -164,60 +164,21 @@ public class StateTransferTest extends ChannelTestBase {
                 semaphore.release();
         }
 
-        public byte[] getState() {
-            synchronized(map) {
-                try {
-                    return Util.objectToByteBuffer(map);
-                }
-                catch(Exception e) {
-                    e.printStackTrace();
-                }
-            }
-            return null;
-        }
 
-        @SuppressWarnings("unchecked")
-        public void setState(byte[] state) {
-            synchronized(map) {
-                try {
-                    Map<Object,Object> tmp=(Map<Object,Object>)Util.objectFromByteBuffer(state);
-                    map.putAll(tmp);
-                    log.info(channel.getAddress() + ": received state, map has " + map.size() + " elements");
-                }
-                catch(Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
 
         public void getState(OutputStream ostream) throws Exception {
-            ObjectOutputStream out=null;
             synchronized(map) {
-                try {
-                    out=new ObjectOutputStream(ostream);
-                    out.writeObject(map);
-                    out.close();
-                }
-                finally {
-                    Util.close(out);
-                }
+                Util.objectToStream(map, new DataOutputStream(ostream));
             }
         }
 
         @SuppressWarnings("unchecked")
         public void setState(InputStream istream) throws Exception {
-            ObjectInputStream in=null;
+            Map<Object,Object> tmp=(Map<Object,Object>)Util.objectFromStream(new DataInputStream(istream));
             synchronized(map) {
-                try {
-                    in=new ObjectInputStream(istream);
-                    Map<Object,Object> tmp=(Map<Object,Object>)in.readObject();
-                    Util.close(in);
-                    map.putAll(tmp);
-                    log.info(channel.getAddress() + ": received state, map has " + map.size() + " elements");
-                }
-                finally {
-                    Util.close(in);
-                }
+                map.clear();
+                map.putAll(tmp);
+                log.info(channel.getAddress() + ": received state, map has " + map.size() + " elements");
             }
         }
 

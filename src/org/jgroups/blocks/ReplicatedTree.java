@@ -10,7 +10,7 @@ import org.jgroups.logging.LogFactory;
 import org.jgroups.util.Util;
 
 import javax.management.MBeanServer;
-import java.io.Serializable;
+import java.io.*;
 import java.util.*;
 
 
@@ -560,35 +560,16 @@ public class ReplicatedTree extends ReceiverAdapter {
         }
     }
 
-    /** Return a copy of the current cache (tree) */
-    public byte[] getState() {
-        try {
-            return Util.objectToByteBuffer(root.clone());
-        }
-        catch(Throwable ex) {
-            if(log.isErrorEnabled()) log.error("exception returning cache: " + ex);
-            return null;
-        }
+
+    public void getState(OutputStream ostream) throws Exception {
+        Util.objectToStream(root.clone(), new DataOutputStream(ostream));
     }
 
-    /** Set the cache (tree) to this value */
-    public void setState(byte[] new_state) {
-        Node new_root=null;
-        Object obj;
 
-        if(new_state == null) {
-            if(log.isInfoEnabled()) log.info("new cache is null");
-            return;
-        }
-        try {
-            obj=Util.objectFromByteBuffer(new_state);
-            new_root=(Node)((Node)obj).clone();
-            root=new_root;
-            notifyAllNodesCreated(root);
-        }
-        catch(Throwable ex) {
-            if(log.isErrorEnabled()) log.error("could not set cache: " + ex);
-        }
+    public void setState(InputStream istream) throws Exception {
+        Object obj=Util.objectFromStream(new DataInputStream(istream));
+        root=(Node)((Node)obj).clone();
+        notifyAllNodesCreated(root);
     }
 
     /*-------------------- End of MessageListener ----------------------*/

@@ -152,65 +152,22 @@ public class ConcurrentStartupTest extends ChannelTestBase {
             }
         }
 
-        @SuppressWarnings("unchecked")
-        public void setState(byte[] state) {
-            super.setState(state);
-            try{
-                List<Address> tmp = (List) Util.objectFromByteBuffer(state);
-                synchronized(this.state) {
-                    this.state.addAll(tmp);
-                    log.info(channel.getAddress() + ": state is " + this.state);
-                }
-            }catch(Exception e){
-                e.printStackTrace();
-            }
-        }
-
-        public byte[] getState() {
-            super.getState();
-            List<Address> tmp = null;
-            synchronized(state) {
-                tmp = new LinkedList<Address>(state);
-                try{
-                    return Util.objectToByteBuffer(tmp);
-                }catch(Exception e){
-                    e.printStackTrace();
-                    return null;
-                }
-            }
-        }
 
         public void getState(OutputStream ostream) throws Exception {
             super.getState(ostream);
-            ObjectOutputStream oos = null;
-            try{
-                oos = new ObjectOutputStream(ostream);
-                List<Address> tmp = null;
-                synchronized(state) {
-                    tmp = new LinkedList<Address>(state);
-                }
-                oos.writeObject(tmp);
-                oos.flush();
-            }
-            finally {
-                Util.close(oos);
+            synchronized(state) {
+                Util.objectToStream(state, new DataOutputStream(ostream));
             }
         }
 
         @SuppressWarnings("unchecked")
         public void setState(InputStream istream) throws Exception {
             super.setState(istream);
-            ObjectInputStream ois = null;
-            try{
-                ois = new ObjectInputStream(istream);
-                List<Address> tmp = (List) ois.readObject();
-                synchronized(state){
-                    state.clear();
-                    state.addAll(tmp);
-                    log.info(channel.getAddress() + ": state is " + state);
-                }
-            }finally{
-                Util.close(ois);
+            List<Address> tmp = (List)Util.objectFromStream(new DataInputStream(istream));
+            synchronized(state){
+                state.clear();
+                state.addAll(tmp);
+                log.info(channel.getAddress() + ": state is " + state);
             }
         }
     }

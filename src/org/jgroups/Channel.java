@@ -377,8 +377,6 @@ public abstract class Channel /* implements Transport */ {
      *
      * @see MessageListener#getState(java.io.OutputStream)
      * @see MessageListener#setState(java.io.InputStream)
-     * @see MessageListener#getState()
-     * @see MessageListener#setState(byte[])
      *
      * @return true If the state transfer was successful, false otherwise
      * @exception ChannelNotConnectedException The channel must be connected to receive messages.

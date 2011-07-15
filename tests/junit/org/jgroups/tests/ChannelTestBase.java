@@ -367,17 +367,9 @@ public class ChannelTestBase {
             events.append('b');
         }
 
-        public byte[] getState() {
-            events.append('g');
-            return null;
-        }
 
         public void getState(OutputStream ostream) throws Exception {
             events.append('g');
-        }
-
-        public void setState(byte[] state) {
-            events.append('s');
         }
 
         public void setState(InputStream istream) throws Exception {

@@ -536,43 +536,7 @@ public class ReplicatedHashMap<K extends Serializable, V extends Serializable> e
 
     public void receive(Message msg) {}
 
-    public byte[] getState() {
-        K key;
-        V val;
-        Map<K,V> copy=new HashMap<K,V>();
-
-        for(Map.Entry<K,V> entry:entrySet()) {
-            key=entry.getKey();
-            val=entry.getValue();
-            copy.put(key, val);
-        }
-        try {
-            return Util.objectToByteBuffer(copy);
-        }
-        catch(Throwable ex) {
-            if(log.isErrorEnabled())
-                log.error("exception marshalling state: " + ex);
-            return null;
-        }
-    }
-
-    public void setState(byte[] new_state) {
-        HashMap<K,V> new_copy;
-
-        try {
-            new_copy=(HashMap<K,V>)Util.objectFromByteBuffer(new_state);
-            if(new_copy == null)
-                return;
-        }
-        catch(Throwable ex) {
-            if(log.isErrorEnabled())
-                log.error("exception unmarshalling state: " + ex);
-            return;
-        }
-        _putAll(new_copy);
-        state_promise.setResult(Boolean.TRUE);
-    }
-
+    
 
     public void getState(OutputStream ostream) throws Exception {
         K key;

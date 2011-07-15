@@ -282,35 +282,6 @@ public class GraphPanel extends Panel implements MouseListener, MouseMotionListe
     }
 
 
-
-    public byte[] getState() {  // return the copy previously saved by saveState()
-        try {
-            synchronized(nodes) {
-                return Util.objectToByteBuffer(nodes);
-            }
-        }
-        catch(Throwable ex) {
-            ex.printStackTrace();
-            return null;
-        }
-    }
-
-
-    public void setState(byte[] data) throws Exception {
-        java.util.List<Node> new_state=(java.util.List<Node>)Util.objectFromByteBuffer(data);
-
-        boolean do_repaint=false;
-        synchronized(nodes) {
-            nodes.clear();
-            if(new_state != null) {
-                nodes.addAll(new_state);
-                do_repaint=true;
-            }
-        }
-        if(do_repaint)
-            repaint();
-    }
-
     public void getState(OutputStream output) throws Exception {
         DataOutputStream out=new DataOutputStream(new BufferedOutputStream(output, 1000));
         try {

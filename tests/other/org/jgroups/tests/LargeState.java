@@ -87,28 +87,6 @@ public class LargeState extends ReceiverAdapter {
             System.out.println("-- view: " + new_view);
     }
 
-    public byte[] getState() {
-        if(state == null) {
-            System.out.println("creating state of " + Util.printBytes(size));
-            state=createLargeState(size);
-        }
-        if(delay > 0)
-            Util.sleep(delay);
-        if(provider_fails)
-            throw new RuntimeException("booom - provider failed");
-        System.out.println("--> returning " + Util.printBytes(state.length));
-        return state;
-    }
-
-    public void setState(byte[] state) {
-        stop=System.currentTimeMillis();
-        if(state != null) {
-            this.state=state;
-            if(requester_fails)
-                throw new RuntimeException("booom - requester failed");
-            System.out.println("<-- received " + Util.printBytes(state.length) + " in " + (stop-start) + "ms");
-        }
-    }
 
     public void setState(InputStream istream) throws Exception {
         total_received=0;
