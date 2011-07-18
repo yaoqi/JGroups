@@ -19,16 +19,16 @@ import java.util.Iterator;
 public class StateTransferTest2 extends ChannelTestBase {
 
 
-    @DataProvider(name="createChannels")
+    /*@DataProvider(name="createChannels")
     protected Iterator<JChannel[]> createChannels() {
         return new MyIterator(new Class[]{STATE_TRANSFER.class, STREAMING_STATE_TRANSFER.class,
           STREAMING_STATE_TRANSFER_SOCKET.class});
-    }
-
-    /*@DataProvider(name="createChannels")
-    protected Iterator<JChannel[]> createChannels() {
-        return new MyIterator(new Class[]{STATE_TRANSFER.class});
     }*/
+
+    @DataProvider(name="createChannels")
+    protected Iterator<JChannel[]> createChannels() {
+        return new MyIterator(new Class[]{STREAMING_STATE_TRANSFER.class});
+    }
 
 
 

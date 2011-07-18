@@ -91,7 +91,6 @@ public class Draw extends ReceiverAdapter implements ActionListener, ChannelList
        boolean          no_channel=false;
        boolean          jmx=true;
        boolean          use_state=false;
-       boolean          use_blocking=false;
        String           group_name=null;
        long             state_timeout=5000;
        boolean          use_unicasts=false;
@@ -120,10 +119,6 @@ public class Draw extends ReceiverAdapter implements ActionListener, ChannelList
             }
             if("-state".equals(args[i])) {
                 use_state=true;
-                continue;
-            }
-            if("-use_blocking".equals(args[i])) {
-                use_blocking=true;
                 continue;
             }
             if("-timeout".equals(args[i])) {
@@ -162,7 +157,7 @@ public class Draw extends ReceiverAdapter implements ActionListener, ChannelList
 
     static void help() {
         System.out.println("\nDraw [-help] [-no_channel] [-props <protocol stack definition>]" +
-                " [-groupname <name>] [-state] [-use_blocking] [-timeout <state timeout>] [-use_unicasts] " +
+                " [-groupname <name>] [-state] [-timeout <state timeout>] [-use_unicasts] " +
                 "[-bind_addr <addr>] [-jmx <true | false>] [-name <logical name>]");
         System.out.println("-no_channel: doesn't use JGroups at all, any drawing will be relected on the " +
                 "whiteboard directly");
