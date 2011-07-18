@@ -14,8 +14,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 
@@ -124,7 +122,7 @@ public class LargeStateTransferTest extends ChannelTestBase {
         }
 
         public void getState(OutputStream ostream) throws Exception {
-            Util.objectToStream(state, new DataOutputStream(ostream));
+            ostream.write(state, 0, state.length);
         }
     }
 
@@ -138,18 +136,19 @@ public class LargeStateTransferTest extends ChannelTestBase {
 
 
         public void setState(InputStream istream) throws Exception {
-            DataInputStream in=null;
             int size=0;
+            byte[] buf=new byte[50000];
             try {
-                in=new DataInputStream(istream);
-                size=in.readInt();
-                byte[] stateReceived=new byte[size];
-                in.readFully(stateReceived, 0, stateReceived.length);
+                for(;;) {
+                    int read=istream.read(buf, 0, buf.length);
+                    if(read == -1)
+                        break;
+                    size+=read;
+                }
             }
             finally {
-                Util.close(in);
+                promise.setResult(size);
             }
-            promise.setResult(size);
         }
     }
 

@@ -52,18 +52,20 @@ public class JChannel extends Channel {
     protected String name=null;
 
     /*the channel (also know as group) name*/
-    private String cluster_name=null;  // group name
+    private String cluster_name=null;
+
     /*the latest view of the group membership*/
     private View my_view=null;
+
     /*the protocol stack, used to send and receive messages from the protocol stack*/
     private ProtocolStack prot_stack=null;
 
     private final Promise<StateTransferResult> state_promise=new Promise<StateTransferResult>();
 
-    /*channel connected flag*/
+    /** channel connected flag */
     protected volatile boolean connected=false;
 
-    /*channel closed flag*/
+    /** channel closed flag*/
     protected volatile boolean closed=false;      // close() has been called, channel is unusable
 
     /** True if a state transfer protocol is available, false otherwise */
@@ -72,11 +74,6 @@ public class JChannel extends Channel {
     /** True if a flush protocol is available, false otherwise */
     private volatile boolean flush_supported=false; // set by CONFIG event from FLUSH protocol
 
-    /** Provides storage for arbitrary objects. Protocols can send up CONFIG events, and all key-value pairs of
-     * a CONFIG event will be added to additional_data. On reconnect, a CONFIG event will be sent down by the channel,
-     * containing all key-value pairs of additional_data
-     */
-    protected final Map<String,Object> additional_data=new HashMap<String,Object>();
     
     protected final ConcurrentMap<String,Object> config=Util.createConcurrentMap(16);
 
@@ -855,9 +852,8 @@ public class JChannel extends Channel {
         checkClosed();
 
         /*make sure we have a valid channel name*/
-        if(cluster_name == null) {
+        if(cluster_name == null)
             if(log.isDebugEnabled()) log.debug("cluster_name is null, assuming unicast channel");
-        }
         else
             this.cluster_name=cluster_name;
 
@@ -969,9 +965,8 @@ public class JChannel extends Channel {
     }
 
     public boolean startFlush(boolean automatic_resume) {
-        if(!flushSupported()) {
+        if(!flushSupported())
             throw new IllegalStateException("Flush is not supported, add pbcast.FLUSH protocol to your configuration");
-        }           	  
         boolean successfulFlush=(Boolean)down(new Event(Event.SUSPEND));
         
         if(automatic_resume)
@@ -982,16 +977,14 @@ public class JChannel extends Channel {
 
     public boolean startFlush(List<Address> flushParticipants,boolean automatic_resume) {
         boolean successfulFlush;
-        if(!flushSupported()){
+        if(!flushSupported())
             throw new IllegalStateException("Flush is not supported, add pbcast.FLUSH protocol to your configuration");
-        }
         View v = getView();
-        if(v != null && v.getMembers().containsAll(flushParticipants)){
+        if(v != null && v.getMembers().containsAll(flushParticipants)) {
             successfulFlush=(Boolean)down(new Event(Event.SUSPEND, flushParticipants));
-        }else{
-            throw new IllegalArgumentException("Current view " + v
-                                               + " does not contain all flush participants "
-                                               + flushParticipants);
+        } else {
+            throw new IllegalArgumentException("Current view " + v + " does not contain all flush participants "
+                                                 + flushParticipants);
         }
         
         if(automatic_resume)
@@ -1005,16 +998,14 @@ public class JChannel extends Channel {
     }
 
     public void stopFlush() {
-        if(!flushSupported()) {
+        if(!flushSupported())
             throw new IllegalStateException("Flush is not supported, add pbcast.FLUSH protocol to your configuration");
-        }      
-        down(new Event(Event.RESUME));      
+        down(new Event(Event.RESUME));
     }
 
     public void stopFlush(List<Address> flushParticipants) {
-        if(!flushSupported()) {
+        if(!flushSupported())
             throw new IllegalStateException("Flush is not supported, add pbcast.FLUSH protocol to your configuration");
-        }       
         down(new Event(Event.RESUME, flushParticipants));
     }
     
@@ -1031,9 +1022,8 @@ public class JChannel extends Channel {
     private TimeScheduler getTimer() {
         if(prot_stack != null) {
             TP transport=prot_stack.getTransport();
-            if(transport != null) {
+            if(transport != null)
                 return transport.getTimer();
-            }
         }
         return null;
     }
