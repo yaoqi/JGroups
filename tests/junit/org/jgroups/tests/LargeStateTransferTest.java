@@ -1,10 +1,9 @@
 package org.jgroups.tests;
 
 
-import org.jgroups.ChannelException;
-import org.jgroups.ReceiverAdapter;
 import org.jgroups.Global;
 import org.jgroups.JChannel;
+import org.jgroups.ReceiverAdapter;
 import org.jgroups.View;
 import org.jgroups.protocols.TP;
 import org.jgroups.protocols.pbcast.GMS;
@@ -15,7 +14,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 /**
  * Tests transfer of large states (http://jira.jboss.com/jira/browse/JGRP-225).
@@ -53,25 +55,25 @@ public class LargeStateTransferTest extends ChannelTestBase {
     }
 
 
-    public void testStateTransfer1() throws ChannelException {
+    public void testStateTransfer1() throws Exception {
         _testStateTransfer(SIZE_1, "testStateTransfer1");
     }
 
-    public void testStateTransfer2() throws ChannelException {
+    public void testStateTransfer2() throws Exception {
         _testStateTransfer(SIZE_2, "testStateTransfer2");
     }
 
-    public void testStateTransfer3() throws ChannelException {
+    public void testStateTransfer3() throws Exception {
         _testStateTransfer(SIZE_3, "testStateTransfer3");
     }
 
-    public void testStateTransfer4() throws ChannelException {
+    public void testStateTransfer4() throws Exception {
         _testStateTransfer(SIZE_4, "testStateTransfer4");
     }
 
 
 
-    private void _testStateTransfer(int size, String suffix) throws ChannelException {
+    private void _testStateTransfer(int size, String suffix) throws Exception {
         final String GROUP="LargeStateTransferTest-" + suffix;
         provider.setReceiver(new Provider(size));
         provider.connect(GROUP);

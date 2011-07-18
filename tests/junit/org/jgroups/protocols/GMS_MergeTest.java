@@ -685,31 +685,31 @@ public class GMS_MergeTest extends ChannelTestBase {
     private static class MyChannel extends JChannel {
         protected int id=0;
 
-        public MyChannel() throws ChannelException {
+        public MyChannel() throws Exception {
             super();
         }
 
-        public MyChannel(File properties) throws ChannelException {
+        public MyChannel(File properties) throws Exception {
             super(properties);
         }
 
-        public MyChannel(Element properties) throws ChannelException {
+        public MyChannel(Element properties) throws Exception {
             super(properties);
         }
 
-        public MyChannel(URL properties) throws ChannelException {
+        public MyChannel(URL properties) throws Exception {
             super(properties);
         }
 
-        public MyChannel(String properties) throws ChannelException {
+        public MyChannel(String properties) throws Exception {
             super(properties);
         }
 
-        public MyChannel(ProtocolStackConfigurator configurator) throws ChannelException {
+        public MyChannel(ProtocolStackConfigurator configurator) throws Exception {
             super(configurator);
         }
 
-        public MyChannel(JChannel ch) throws ChannelException {
+        public MyChannel(JChannel ch) throws Exception {
             super(ch);
         }
 

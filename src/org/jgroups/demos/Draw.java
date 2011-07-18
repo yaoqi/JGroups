@@ -154,10 +154,7 @@ public class Draw extends ReceiverAdapter implements ActionListener, ChannelList
             draw.go();
         }
         catch(Throwable e) {
-            System.err.println("fatal error: " + e.getLocalizedMessage() + ", cause: ");
-            Throwable t=e.getCause();
-            if(t != null)
-                t.printStackTrace(System.err);
+            e.printStackTrace(System.err);
             System.exit(0);
         }
     }

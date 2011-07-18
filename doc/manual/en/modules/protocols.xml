@@ -746,14 +746,11 @@
                 </para>
 
                 <para>
-                    <screen>public boolean getState(Address target,long timeout)throws
-                        ChannelNotConnectedException,ChannelClosedException;
-                        public boolean getState(Address target,String state_id,long timeout)throws
-                        ChannelNotConnectedException,ChannelClosedException;
+                    <screen>public boolean getState(Address target, long timeout) throws
+                        Exception;
                     </screen>
                     Introduction of STREAMING_STATE_TRANSFER does
-                    <emphasis>not</emphasis>
-                    change the current API.
+                    <emphasis>not</emphasis> change the current API.
                 </para>
             </section>
 

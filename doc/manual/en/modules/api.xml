@@ -507,7 +507,7 @@
         </para>
 
       <screen>
-          public JChannel(String props) throws ChannelException {}
+          public JChannel(String props) throws Exception {}
       </screen>
 
         <para>It creates an instance of <classname>JChannel</classname> . The
@@ -903,9 +903,8 @@
 		      </para>  
 		      
 		      <screen>
-		      public void connect(string cluster_name, address target,
-                                  string state_id, long timeout)
-                          throws ChannelException;
+		      public void connect(string cluster_name, address target, long timeout)
+                          throws Exception;
 		      </screen>
 		      
 		      <para>

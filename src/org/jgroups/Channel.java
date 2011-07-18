@@ -83,12 +83,10 @@ public abstract class Channel /* implements Transport */ {
      channel name.<p>
 
      @param cluster_name The name of the chanel to connect to.
-     @exception ChannelException The protocol stack cannot be started
-     @exception ChannelClosedException The channel is closed and therefore cannot be used any longer.
-     A new channel has to be created first.
-     @see #disconnect()
+     @exception Exception The protocol stack cannot be started
+     @exception IllegalStateException The channel is closed or not connected
      */
-    abstract public void connect(String cluster_name) throws ChannelException;
+    abstract public void connect(String cluster_name) throws Exception;
 
 
     /**
@@ -109,14 +107,11 @@ public abstract class Channel /* implements Transport */ {
      * @param target the state provider. If null state will be fetched from coordinator, unless this channel is coordinator.
      * @param timeout the timeout for state transfer.
      *
-     * @exception ChannelException The protocol stack cannot be started
-     * @exception ChannelException Connecting to cluster was not successful
-     * @exception ChannelClosedException The channel is closed and therefore cannot be used any longer.
-     *                                   A new channel has to be created first.
-     * @exception StateTransferException State transfer was not successful
+     * @exception Exception Connecting to the cluster or state transfer was not successful
+     * @exception IllegalStateException The channel is closed or disconnected and therefore cannot be used
      *
      */
-    abstract public void connect(String cluster_name, Address target, long timeout) throws ChannelException;
+    abstract public void connect(String cluster_name, Address target, long timeout) throws Exception;
 
 
     /**
@@ -168,11 +163,9 @@ public abstract class Channel /* implements Transport */ {
      </ol>
      @param msg The message to be sent. Destination and buffer should be set. A null destination
      means to send to all group members.
-     @exception ChannelNotConnectedException The channel must be connected to send messages.
-     @exception ChannelClosedException The channel is closed and therefore cannot be used any longer.
-     A new channel has to be created first.
+     @exception IllegalStateException thrown if the state is disconnected or closed
      */
-    abstract public void send(Message msg) throws ChannelException;
+    abstract public void send(Message msg) throws Exception;
 
 
     /**
@@ -181,15 +174,15 @@ public abstract class Channel /* implements Transport */ {
      @param obj Serializable object. Will be serialized into the byte buffer of the Message. If it is <em>
      not</em> serializable, the byte buffer will be null.
      */
-    abstract public void send(Address dst, Serializable obj) throws ChannelException;
+    abstract public void send(Address dst, Serializable obj) throws Exception;
 
     /**
      * Sends a message. See {@link #send(Address,byte[],int,int)} for details
      * @param dst
      * @param buf
-     * @throws ChannelException
+     * @throws Exception
      */
-    abstract public void send(Address dst, byte[] buf) throws ChannelException;
+    abstract public void send(Address dst, byte[] buf) throws Exception;
 
     /**
      * Sends a message to a destination.
@@ -198,9 +191,9 @@ public abstract class Channel /* implements Transport */ {
      * @param offset The offset into the buffer
      * @param length The length of the data to be sent. Has to be <= buf.length - offset. This will send
      *        <code>length</code> bytes starting at <code>offset</code>
-     * @throws ChannelException If send() failed
+     * @throws Exception If send() failed
      */
-    abstract public void send(Address dst, byte[] buf, int offset, int length) throws ChannelException;
+    abstract public void send(Address dst, byte[] buf, int offset, int length) throws Exception;
 
 
     /**
@@ -379,14 +372,11 @@ public abstract class Channel /* implements Transport */ {
      * @see MessageListener#setState(java.io.InputStream)
      *
      * @return true If the state transfer was successful, false otherwise
-     * @exception ChannelNotConnectedException The channel must be connected to receive messages.
-     * @exception ChannelClosedException The channel is closed and therefore cannot be used
-     *            any longer. A new channel has to be created first.
+     * @exception IllegalStateException The channel was closed or disconnected, or the flush failed
      * @exception StateTransferException When there was a problem during the state transfer. The exact subtype of
      *            the exception, plus the exception message will allow a caller to determine what went wrong, and to possbly retry.
-     * @throws IllegalStateException If the flush is used in this channel and the cluster could not be flushed
      */
-    abstract public boolean getState(Address target, long timeout) throws ChannelException;
+    abstract public boolean getState(Address target, long timeout) throws Exception;
 
 
 

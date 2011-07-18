@@ -141,17 +141,10 @@ public class ProtocolStack extends Protocol implements Transport {
     };
 
 
-    public ProtocolStack(JChannel channel) throws ChannelException {
-        // this.configs=configs;
+    public ProtocolStack(JChannel channel) throws Exception {
         this.channel=channel;
-
         Class<?> tmp=ClassConfigurator.class; // load this class, trigger init()
-        try {
-            tmp.newInstance();
-        }
-        catch(Exception e) {
-            throw new ChannelException("failed initializing ClassConfigurator", e);
-        }
+        tmp.newInstance();
     }
 
 

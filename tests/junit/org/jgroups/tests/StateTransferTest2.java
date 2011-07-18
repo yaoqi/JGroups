@@ -19,22 +19,22 @@ import java.util.Iterator;
 public class StateTransferTest2 extends ChannelTestBase {
 
 
-    /*@DataProvider(name="createChannels")
+    @DataProvider(name="createChannels")
     protected Iterator<JChannel[]> createChannels() {
         return new MyIterator(new Class[]{STATE_TRANSFER.class, STREAMING_STATE_TRANSFER.class,
           STREAMING_STATE_TRANSFER_SOCKET.class});
-    }*/
+    }
 
-    @DataProvider(name="createChannels")
+    /*@DataProvider(name="createChannels")
     protected Iterator<JChannel[]> createChannels() {
         return new MyIterator(new Class[]{STATE_TRANSFER.class});
-    }
+    }*/
 
 
 
    
     @Test(dataProvider="createChannels")
-    public void testSuccessfulStateTransfer(final JChannel c1, final JChannel c2) throws ChannelException {
+    public void testSuccessfulStateTransfer(final JChannel c1, final JChannel c2) throws Exception {
         try {
             StateHandler sh1=new StateHandler("Bela", false, false), sh2=new StateHandler(null, false, false);
             c1.setReceiver(sh1);
@@ -51,7 +51,7 @@ public class StateTransferTest2 extends ChannelTestBase {
     }
 
     @Test(dataProvider="createChannels")
-    public void testUnsuccessfulStateTransferFailureAtStateProvider(final JChannel c1, final JChannel c2) throws ChannelException {
+    public void testUnsuccessfulStateTransferFailureAtStateProvider(final JChannel c1, final JChannel c2) throws Exception {
         try {
             StateHandler sh1=new StateHandler("Bela", true, false), sh2=new StateHandler(null, false, false);
             c1.setReceiver(sh1);
@@ -60,7 +60,7 @@ public class StateTransferTest2 extends ChannelTestBase {
                 c2.getState(null, 0);
                 assert false : "we shouldn't get here; getState() should have thrown an exception";
             }
-            catch(ChannelException ex) {
+            catch(StateTransferException ex) {
                 System.out.println("getState() threw an exception - as expected: " + ex);
             }
             Object state=sh2.getReceivedState();
@@ -74,7 +74,7 @@ public class StateTransferTest2 extends ChannelTestBase {
 
 
     @Test(dataProvider="createChannels")
-    public void testUnsuccessfulStateTransferFailureAtStateRequester(final JChannel c1, final JChannel c2) throws ChannelException {
+    public void testUnsuccessfulStateTransferFailureAtStateRequester(final JChannel c1, final JChannel c2) throws Exception {
         StateHandler sh1=new StateHandler("Bela", false, false), sh2=new StateHandler(null, false, true);
         c1.setReceiver(sh1);
         c2.setReceiver(sh2);

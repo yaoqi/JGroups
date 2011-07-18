@@ -103,7 +103,7 @@ public class JChannel extends Channel {
             try {
                 init(ConfiguratorFactory.getStackConfigurator(DEFAULT_PROTOCOL_STACK));
             }
-            catch(ChannelException e) {
+            catch(Exception e) {
                 throw new RuntimeException(e);
             }
         }
@@ -112,36 +112,36 @@ public class JChannel extends Channel {
     /**
      * Constructs a <code>JChannel</code> instance with the protocol stack
      * specified by the <code>DEFAULT_PROTOCOL_STACK</code> member.
-     * @throws ChannelException If problems occur during the initialization of the protocol stack.
+     * @throws Exception If problems occur during the initialization of the protocol stack.
      */
-    public JChannel() throws ChannelException {
+    public JChannel() throws Exception {
         this(DEFAULT_PROTOCOL_STACK);
     }
 
     /**
      * Constructs a JChannel instance with the protocol stack configuration contained by the specified file.
      * @param properties A file containing a JGroups XML protocol stack configuration.
-     * @throws ChannelException If problems occur during the configuration or initialization of the protocol stack.
+     * @throws Exception If problems occur during the configuration or initialization of the protocol stack.
      */
-    public JChannel(File properties) throws ChannelException {
+    public JChannel(File properties) throws Exception {
         this(ConfiguratorFactory.getStackConfigurator(properties));
     }
 
     /**
      * Constructs a JChannel instance with the protocol stack configuration contained by the specified XML element.
      * @param properties An XML element containing a JGroups XML protocol stack configuration.
-     * @throws ChannelException If problems occur during the configuration or initialization of the protocol stack.
+     * @throws Exception If problems occur during the configuration or initialization of the protocol stack.
      */
-    public JChannel(Element properties) throws ChannelException {
+    public JChannel(Element properties) throws Exception {
         this(ConfiguratorFactory.getStackConfigurator(properties));
     }
 
     /**
      * Constructs a JChannel instance with the protocol stack configuration indicated by the specified URL.
      * @param properties A URL pointing to a JGroups XML protocol stack configuration.
-     * @throws ChannelException If problems occur during the configuration or initialization of the protocol stack.
+     * @throws Exception If problems occur during the configuration or initialization of the protocol stack.
      */
-    public JChannel(URL properties) throws ChannelException {
+    public JChannel(URL properties) throws Exception {
         this(ConfiguratorFactory.getStackConfigurator(properties));
     }
 
@@ -149,9 +149,9 @@ public class JChannel extends Channel {
      * Constructs a JChannel instance with the protocol stack configuration based upon the specified properties parameter.
      * @param props A file containing a JGroups XML configuration, a URL pointing to an XML configuration, or an old
      *              style plain configuration string.
-     * @throws ChannelException If problems occur during the configuration or initialization of the protocol stack.
+     * @throws Exception If problems occur during the configuration or initialization of the protocol stack.
      */
-    public JChannel(String props) throws ChannelException {
+    public JChannel(String props) throws Exception {
         this(ConfiguratorFactory.getStackConfigurator(props));
     }
 
@@ -160,9 +160,9 @@ public class JChannel extends Channel {
      * <p>
      * All of the public constructors of this class eventually delegate to this method.
      * @param configurator A protocol stack configurator containing a JGroups protocol stack configuration.
-     * @throws ChannelException If problems occur during the initialization of the protocol stack.
+     * @throws Exception If problems occur during the initialization of the protocol stack.
      */
-    public JChannel(ProtocolStackConfigurator configurator) throws ChannelException {
+    public JChannel(ProtocolStackConfigurator configurator) throws Exception {
         init(configurator);
     }
 
@@ -172,9 +172,9 @@ public class JChannel extends Channel {
      * Creates a channel with the same configuration as the channel passed to this constructor. This is used by
      * testing code, and should not be used by any other code !
      * @param ch
-     * @throws ChannelException
+     * @throws Exception
      */
-    public JChannel(JChannel ch) throws ChannelException {
+    public JChannel(JChannel ch) throws Exception {
         init(ch);
         discard_own_messages=ch.discard_own_messages;
     }
@@ -257,7 +257,7 @@ public class JChannel extends Channel {
 
 
     @ManagedOperation(description="Connects the channel to a group")
-    public synchronized void connect(String cluster_name) throws ChannelException {
+    public synchronized void connect(String cluster_name) throws Exception {
     	connect(cluster_name,true);
     }
 
@@ -266,9 +266,9 @@ public class JChannel extends Channel {
      * @see JChannel#connect(String)
      */
     @ManagedOperation(description="Connects the channel to a group")
-    protected synchronized void connect(String cluster_name, boolean useFlushIfPresent) throws ChannelException {
-        if (connected) {
-            if (log.isTraceEnabled())
+    protected synchronized void connect(String cluster_name, boolean useFlushIfPresent) throws Exception {
+        if(connected) {
+            if(log.isTraceEnabled())
                 log.trace("already connected to " + cluster_name);
             return;
         }
@@ -276,31 +276,30 @@ public class JChannel extends Channel {
         setAddress();
         startStack(cluster_name);
 
-        if (cluster_name != null) { // only connect if we are not a unicast channel
-            
+        if(cluster_name != null) { // only connect if we are not a unicast channel
+
             Event connect_event;
-            if (useFlushIfPresent) {
-                connect_event = new Event(Event.CONNECT_USE_FLUSH, cluster_name);
-            } else {
-                connect_event = new Event(Event.CONNECT, cluster_name);
+            if(useFlushIfPresent) {
+                connect_event=new Event(Event.CONNECT_USE_FLUSH, cluster_name);
+            }
+            else {
+                connect_event=new Event(Event.CONNECT, cluster_name);
             }
 
             // waits forever until connected (or channel is closed)
-            Object res = down(connect_event);
-            if (res != null && res instanceof Exception) {
+            Object res=down(connect_event);
+            if(res != null && res instanceof Exception) {
                 // the JOIN was rejected by the coordinator
                 stopStack(true, false);
                 init();
-                throw new ChannelException("connect() failed", (Throwable) res);
-            }            
+                throw new Exception("connect() failed", (Throwable)res);
+            }
         }
-        connected = true;
+        connected=true;
         notifyChannelConnected(this);
     }
 
-    public synchronized void connect(String cluster_name,
-                                     Address target,
-                                     long timeout) throws ChannelException {
+    public synchronized void connect(String cluster_name, Address target, long timeout) throws Exception {
     	connect(cluster_name, target, timeout,true);
     }
 
@@ -318,17 +317,13 @@ public class JChannel extends Channel {
      *               is the coordinator.
      * @param timeout The timeout for the state transfer.
      * 
-     * @exception ChannelException The protocol stack cannot be started
-     * @exception ChannelException Connecting to cluster was not successful 
-     * @exception ChannelClosedException The channel is closed and therefore cannot be used any longer.
-     *                                   A new channel has to be created first.
+     * @exception Exception The protocol stack cannot be started, or the JOIN failed
+     * @exception IllegalStateException The channel is closed or disconnected
      * @exception StateTransferException State transfer was not successful
      *
      */
-    public synchronized void connect(String cluster_name,
-                                     Address target,
-                                     long timeout,
-                                     boolean useFlushIfPresent) throws ChannelException {
+    public synchronized void connect(String cluster_name, Address target, long timeout,
+                                     boolean useFlushIfPresent) throws Exception {
 
         if(connected) {
             if(log.isTraceEnabled()) log.trace("already connected to " + this.cluster_name);
@@ -357,7 +352,7 @@ public class JChannel extends Channel {
             if(!joinSuccessful) {
                 stopStack(true, false);
                 init();
-                throw new ChannelException("connect() failed", (Throwable)res);
+                throw new Exception("connect() failed", (Throwable)res);
             }
 
             connected=true;
@@ -458,7 +453,7 @@ public class JChannel extends Channel {
 
 
     @ManagedOperation
-    public void send(Message msg) throws ChannelException {
+    public void send(Message msg) throws Exception {
         checkClosedOrNotConnected();
         if(msg == null)
             throw new NullPointerException("msg is null");
@@ -472,15 +467,15 @@ public class JChannel extends Channel {
 
 
     @ManagedOperation
-    public void send(Address dst, Serializable obj) throws ChannelException {
+    public void send(Address dst, Serializable obj) throws Exception {
         send(new Message(dst, null, obj));
     }
 
-    public void send(Address dst, byte[] buf) throws ChannelException {
+    public void send(Address dst, byte[] buf) throws Exception {
         send(new Message(dst, null, buf));
     }
 
-    public void send(Address dst, byte[] buf, int offset, int length) throws ChannelException {
+    public void send(Address dst, byte[] buf, int offset, int length) throws Exception {
         send(new Message(dst, null, buf, offset, length));
     }
 
@@ -558,7 +553,7 @@ public class JChannel extends Channel {
     }
 
 
-    public boolean getState(Address target, long timeout) throws ChannelException {
+    public boolean getState(Address target, long timeout) throws Exception {
         return getState(target, timeout, true);
     }
 
@@ -566,7 +561,7 @@ public class JChannel extends Channel {
     /**
      * Retrieves state from the target member. See {@link #getState(Address,long)} for details.
      */
-    public boolean getState(Address target, long timeout, boolean useFlushIfPresent) throws ChannelException {
+    public boolean getState(Address target, long timeout, boolean useFlushIfPresent) throws Exception {
     	Callable<Boolean> flusher = new Callable<Boolean>() {
 			public Boolean call() throws Exception {
 				return Util.startFlush(JChannel.this);
@@ -576,7 +571,7 @@ public class JChannel extends Channel {
 	}
     
 
-    protected boolean getState(Address target, long timeout, Callable<Boolean> flushInvoker) throws ChannelException {
+    protected boolean getState(Address target, long timeout, Callable<Boolean> flushInvoker) throws Exception {
         checkClosedOrNotConnected();
         if(!state_transfer_supported)
             throw new IllegalStateException("fetching state will fail as state transfer is not supported. "
@@ -809,32 +804,22 @@ public class JChannel extends Channel {
         return null;
     }
 
-    protected final void init(ProtocolStackConfigurator configurator) throws ChannelException {
+    protected final void init(ProtocolStackConfigurator configurator) throws Exception {
         if(log.isInfoEnabled())
             log.info("JGroups version: " + Version.description);
 
         List<ProtocolConfiguration> configs;
-        try {
-            configs=configurator.getProtocolStack();
-            for(ProtocolConfiguration config: configs) 
-                config.substituteVariables();  // replace vars with system props
-        }
-        catch(Exception e) {
-            throw new ChannelException("unable to parse the protocol configuration", e);
-        }
+        configs=configurator.getProtocolStack();
+        for(ProtocolConfiguration config: configs)
+            config.substituteVariables();  // replace vars with system props
 
         synchronized(Channel.class) {
             prot_stack=new ProtocolStack(this);
-            try {
-                prot_stack.setup(configs); // Setup protocol stack (creates protocol, calls init() on them)
-            }
-            catch(Throwable e) {
-                throw new ChannelException("unable to setup the protocol stack", e);
-            }
+            prot_stack.setup(configs); // Setup protocol stack (creates protocol, calls init() on them)
         }
     }
 
-    protected final void init(JChannel ch) throws ChannelException {
+    protected final void init(JChannel ch) throws Exception {
         if(ch == null)
             throw new IllegalArgumentException("channel is null");
         if(log.isInfoEnabled())
@@ -842,12 +827,7 @@ public class JChannel extends Channel {
 
         synchronized(JChannel.class) {
             prot_stack=new ProtocolStack(this);
-            try {
-                prot_stack.setup(ch.getProtocolStack()); // Setup protocol stack (creates protocol, calls init() on them)
-            }
-            catch(Throwable e) {
-                throw new ChannelException("unable to setup the protocol stack: " + e.getMessage(), e);
-            }
+            prot_stack.setup(ch.getProtocolStack()); // Setup protocol stack (creates protocol, calls init() on them)
         }
     }
 
@@ -870,7 +850,7 @@ public class JChannel extends Channel {
     }
 
 
-    private void startStack(String cluster_name) throws ChannelException {
+    private void startStack(String cluster_name) throws Exception {
         /*make sure the channel is not closed*/
         checkClosed();
 
@@ -884,13 +864,7 @@ public class JChannel extends Channel {
         if(socket_factory != null)
             prot_stack.getTopProtocol().setSocketFactory(socket_factory);
 
-        try {
-            prot_stack.startStack(cluster_name, local_addr); // calls start() in all protocols, from top to bottom
-        }
-        catch(Throwable e) {
-            throw new ChannelException("failed to start protocol stack", e);
-        }
-
+        prot_stack.startStack(cluster_name, local_addr); // calls start() in all protocols, from top to bottom
 
         /*create a temporary view, assume this channel is the only member and is the coordinator*/
         Vector<Address> t=new Vector<Address>(1);
@@ -926,17 +900,17 @@ public class JChannel extends Channel {
      * health check<BR>
      * throws a ChannelClosed exception if the channel is closed
      */
-    protected void checkClosed() throws ChannelException {
+    protected void checkClosed() {
         if(closed)
-            throw new ChannelClosedException();
+            throw new IllegalStateException("channel is closed");
     }
 
 
-    protected void checkClosedOrNotConnected() throws ChannelException {
+    protected void checkClosedOrNotConnected() {
         if(closed)
-            throw new ChannelClosedException();
+            throw new IllegalStateException("channel is closed");
         if(!connected)
-            throw new ChannelNotConnectedException();
+            throw new IllegalStateException("channel is disconnected");
     }
 
 

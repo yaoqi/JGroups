@@ -1,10 +1,9 @@
 
 package org.jgroups.conf;
 
+import org.jgroups.JChannel;
 import org.jgroups.logging.Log;
 import org.jgroups.logging.LogFactory;
-import org.jgroups.ChannelException;
-import org.jgroups.JChannel;
 import org.jgroups.util.Util;
 import org.w3c.dom.Element;
 
@@ -45,9 +44,9 @@ public class ConfiguratorFactory {
      *
      * @return a <code>ProtocolStackConfigurator</code> containing the stack configuration.
      *
-     * @throws ChannelException if problems occur during the configuration of the protocol stack.
+     * @throws Exception if problems occur during the configuration of the protocol stack.
      */
-    public static ProtocolStackConfigurator getStackConfigurator(File file) throws ChannelException {
+    public static ProtocolStackConfigurator getStackConfigurator(File file) throws Exception {
         try {
             checkJAXPAvailability();
             InputStream input=getConfigStream(file);
@@ -65,9 +64,9 @@ public class ConfiguratorFactory {
      *
      * @return a <code>ProtocolStackConfigurator</code> containing the stack configuration.
      *
-     * @throws ChannelException if problems occur during the configuration of the protocol stack.
+     * @throws Exception if problems occur during the configuration of the protocol stack.
      */
-    public static ProtocolStackConfigurator getStackConfigurator(URL url) throws ChannelException {
+    public static ProtocolStackConfigurator getStackConfigurator(URL url) throws Exception {
         try {
             checkForNullConfiguration(url);
             checkJAXPAvailability();
@@ -85,9 +84,9 @@ public class ConfiguratorFactory {
      *
      * @return a <code>ProtocolStackConfigurator</code> containing the stack configuration.
      *
-     * @throws ChannelException if problems occur during the configuration of the protocol stack.
+     * @throws Exception if problems occur during the configuration of the protocol stack.
      */
-    public static ProtocolStackConfigurator getStackConfigurator(Element element) throws ChannelException {
+    public static ProtocolStackConfigurator getStackConfigurator(Element element) throws Exception {
         try {
             checkForNullConfiguration(element);
             return XmlConfigurator.getInstance(element);
@@ -105,7 +104,7 @@ public class ConfiguratorFactory {
      *                   XML configuration, a string representing a URL pointing to a JGroups XML configuration,
      *                   or a string representing a file name that contains a JGroups XML configuration.
      */
-    public static ProtocolStackConfigurator getStackConfigurator(String properties) throws ChannelException {
+    public static ProtocolStackConfigurator getStackConfigurator(String properties) throws Exception {
         // added by bela: for null String props we use the default properties
         if(properties == null)
             properties=JChannel.DEFAULT_PROTOCOL_STACK;
@@ -278,14 +277,12 @@ public class ConfiguratorFactory {
     }
 
     /**
-     * Creates a <code>ChannelException</code> instance based upon a
-     * configuration problem.
+     * Creates an exception based upon a configuration problem
      *
-     * @param cause the exceptional configuration condition to be used as the
-     *              created <code>ChannelException</code>'s cause.
+     * @param cause the exceptional configuration condition to be used as the exception's cause.
      */
-    static ChannelException createChannelConfigurationException(Throwable cause) {
-        return new ChannelException("unable to load the protocol stack", cause);
+    static Exception createChannelConfigurationException(Throwable cause) {
+        return new Exception("unable to load the protocol stack", cause);
     }
 
     /**

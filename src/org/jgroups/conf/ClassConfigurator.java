@@ -2,7 +2,6 @@
 package org.jgroups.conf;
 
 
-import org.jgroups.ChannelException;
 import org.jgroups.Global;
 import org.jgroups.logging.Log;
 import org.jgroups.logging.LogFactory;
@@ -16,7 +15,6 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.*;
 
@@ -62,7 +60,7 @@ public class ClassConfigurator {
     public ClassConfigurator() {
     }
 
-    protected static void init() throws ChannelException {
+    protected static void init() throws Exception {
         try {
             // make sure we have a class for DocumentBuilderFactory
             Util.loadClass("javax.xml.parsers.DocumentBuilderFactory", ClassConfigurator.class);
@@ -74,7 +72,7 @@ public class ClassConfigurator {
                 protocol_id_file=Util.getProperty(new String[]{Global.PROTOCOL_ID_FILE, "org.jgroups.conf.protocolIDFile"},
                                                   null, null, false, PROTOCOL_ID_FILE);
                 if(log.isDebugEnabled()) log.debug("Using " + magic_number_file + " as magic number file and " +
-                        protocol_id_file + " for protocol IDs");
+                                                     protocol_id_file + " for protocol IDs");
             }
             catch (SecurityException ex){
             }
@@ -83,42 +81,28 @@ public class ClassConfigurator {
             List<Tuple<Short,String>> mapping=readMappings(magic_number_file);
             for(Tuple<Short,String> tuple: mapping) {
                 short m=tuple.getVal1();
-                try {
-                    Class clazz=Util.loadClass(tuple.getVal2(), ClassConfigurator.class);
-                    if(magicMap.containsKey(m))
-                        throw new ChannelException("key " + m + " (" + clazz.getName() + ')' +
-                                " is already in magic map; please make sure that all keys are unique");
+                Class clazz=Util.loadClass(tuple.getVal2(), ClassConfigurator.class);
+                if(magicMap.containsKey(m))
+                    throw new Exception("key " + m + " (" + clazz.getName() + ')' +
+                                          " is already in magic map; please make sure that all keys are unique");
                     
-                    magicMap.put(m, clazz);
-                    classMap.put(clazz, m);
-                }
-                catch(ClassNotFoundException cnf) {
-                    throw new ChannelException("failed loading class", cnf);
-                }
+                magicMap.put(m, clazz);
+                classMap.put(clazz, m);
             }
 
-            // Read jg-protocol-ids.xml
-            mapping=readMappings(protocol_id_file);
+            mapping=readMappings(protocol_id_file); // Read jg-protocol-ids.xml
             for(Tuple<Short,String> tuple: mapping) {
                 short m=tuple.getVal1();
-                try {
-                    Class clazz=Util.loadClass(tuple.getVal2(), ClassConfigurator.class);
-                    if(protocol_ids.containsKey(clazz))
-                        throw new ChannelException("ID " + m + " (" + clazz.getName() + ')' +
-                                " is already in protocol-ID map; please make sure that all protocol IDs are unique");
-                    protocol_ids.put(clazz, m);
-                    protocol_names.put(m, clazz);
-                }
-                catch(ClassNotFoundException cnf) {
-                    throw new ChannelException("failed loading class", cnf);
-                }
+                Class clazz=Util.loadClass(tuple.getVal2(), ClassConfigurator.class);
+                if(protocol_ids.containsKey(clazz))
+                    throw new Exception("ID " + m + " (" + clazz.getName() + ')' +
+                                          " is already in protocol-id map; make sure that all protocol IDs are unique");
+                protocol_ids.put(clazz, m);
+                protocol_names.put(m, clazz);
             }
         }
-        catch(ChannelException ex) {
-            throw ex;
-        }
-        catch(Throwable x) {
-            throw new ChannelException("failed reading the magic number mapping file", x);
+        catch(Exception x) {
+            throw new Exception("failed reading the magic number mapping file", x);
         }
     }
 
@@ -251,7 +235,7 @@ public class ClassConfigurator {
             }
         }
         catch(Exception x) {
-            throw new ChannelException(name + " not found. Please make sure it is on the classpath", x);
+            throw new Exception(name + " not found. Please make sure it is on the classpath", x);
         }
         return parse(stream);
     }
@@ -271,22 +255,15 @@ public class ClassConfigurator {
         return list;
     }
 
-    protected static Tuple<Short,String> parseClassData(Node protocol) throws java.io.IOException {
-        try {
-            protocol.normalize();
-            NamedNodeMap attrs=protocol.getAttributes();
-            String clazzname;
-            String magicnumber;
+    protected static Tuple<Short,String> parseClassData(Node protocol) {
+        protocol.normalize();
+        NamedNodeMap attrs=protocol.getAttributes();
+        String clazzname;
+        String magicnumber;
 
-            magicnumber=attrs.getNamedItem("id").getNodeValue();
-            clazzname=attrs.getNamedItem("name").getNodeValue();
-            return new Tuple<Short,String>(Short.valueOf(magicnumber), clazzname);
-        }
-        catch(Exception x) {
-            IOException tmp=new IOException();
-            tmp.initCause(x);
-            throw tmp;
-        }
+        magicnumber=attrs.getNamedItem("id").getNodeValue();
+        clazzname=attrs.getNamedItem("name").getNodeValue();
+        return new Tuple<Short,String>(Short.valueOf(magicnumber), clazzname);
     }
 
 

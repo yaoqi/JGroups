@@ -174,12 +174,8 @@ public class ReplicatedHashMap<K extends Serializable, V extends Serializable> e
     /**
      * Fetches the state
      * @param state_timeout
-     * @throws org.jgroups.ChannelClosedException
-     * @throws org.jgroups.ChannelNotConnectedException
      */
-    public final void start(long state_timeout) throws ChannelException {
-        if(!channel.isConnected()) throw new ChannelNotConnectedException();
-        if(!channel.isOpen()) throw new ChannelClosedException();
+    public final void start(long state_timeout) throws Exception {
         send_message = channel.getView().size()>1;
         
         boolean rc;
