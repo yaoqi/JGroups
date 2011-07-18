@@ -104,6 +104,8 @@ API changes in 3.0.0
   ---------------------------
   - Removed byte[] getState() and void setState(byte[] data) callbacks in MessageListener and Receiver. Use the callbacks
     which use input and output streams instead
+  - JChannel.getState() now returns void instead of boolean
+  
 
   
 

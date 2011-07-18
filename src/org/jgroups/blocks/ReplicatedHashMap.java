@@ -176,27 +176,19 @@ public class ReplicatedHashMap<K extends Serializable, V extends Serializable> e
      * @param state_timeout
      */
     public final void start(long state_timeout) throws Exception {
-        send_message = channel.getView().size()>1;
-        
-        boolean rc;
+        send_message=channel.getView().size() > 1;
         state_promise.reset();
-        rc=channel.getState(null, state_timeout);
-        if(rc) {
-            if(log.isInfoEnabled())
-                log.info("state was retrieved successfully, waiting for setState()");
-            Boolean result=state_promise.getResult(state_timeout);
-            if(result == null) {
-                if(log.isErrorEnabled())
-                    log.error("setState() never got called");
-            }
-            else {
-                if(log.isInfoEnabled())
-                    log.info("setState() was called");
-            }
+        channel.getState(null, state_timeout);
+        if(log.isInfoEnabled())
+            log.info("state was retrieved successfully, waiting for setState()");
+        Boolean result=state_promise.getResult(state_timeout);
+        if(result == null) {
+            if(log.isErrorEnabled())
+                log.error("setState() never got called");
         }
         else {
             if(log.isInfoEnabled())
-                log.info("state could not be retrieved (first member)");
+                log.info("setState() was called");
         }
     }
 

@@ -330,23 +330,17 @@ public class JChannel extends Channel {
         setAddress();
         startStack(cluster_name);
 
-        boolean stateTransferOk;
-        boolean joinSuccessful;
         boolean canFetchState=false;
-        // only connect if we are not a unicast channel
-        if(cluster_name == null)
+
+        if(cluster_name == null) // only connect if we are not a unicast channel
             return;
 
         try {
-            Event connect_event;
-            if(useFlushIfPresent)
-                connect_event=new Event(Event.CONNECT_WITH_STATE_TRANSFER_USE_FLUSH, cluster_name);
-            else
-                connect_event=new Event(Event.CONNECT_WITH_STATE_TRANSFER, cluster_name);
+            Event connect_event=useFlushIfPresent? new Event(Event.CONNECT_WITH_STATE_TRANSFER_USE_FLUSH, cluster_name)
+                                                 : new Event(Event.CONNECT_WITH_STATE_TRANSFER, cluster_name);
 
             Object res=down(connect_event); // waits forever until connected (or channel is closed)
-            joinSuccessful=!(res != null && res instanceof Exception);
-            if(!joinSuccessful) {
+            if(res instanceof Exception) {
                 stopStack(true, false);
                 init();
                 throw new Exception("connect() failed", (Throwable)res);
@@ -357,26 +351,12 @@ public class JChannel extends Channel {
             canFetchState=getView() != null && getView().size() > 1;
 
             // if I am not the only member in cluster then
-            if(canFetchState) {
-                try {
-                    // fetch state from target
-                    stateTransferOk=getState(target, timeout, false);
-                    if(!stateTransferOk) {
-                        throw new StateTransferException(getAddress() + " could not fetch state from "
-                                                           + (target == null ? "(all)" : target));
-                    }
-                }
-                catch(Exception e) {
-                    throw new StateTransferException(getAddress() + " could not fetch state from "
-                                                       + (target == null ? "(all)" : target), e);
-                }
-            }
-
+            if(canFetchState)
+                getState(target, timeout, false); // fetch state from target
         }
         finally {
-            if (flushSupported() && useFlushIfPresent){
-                //stopFlush if we fetched the state or failed to connect...
-                if(canFetchState || !connected)            
+            if(flushSupported() && useFlushIfPresent) {
+                if(canFetchState || !connected) // stopFlush if we fetched the state or failed to connect...
                     stopFlush();                             
             }
         }
@@ -550,36 +530,36 @@ public class JChannel extends Channel {
     }
 
 
-    public boolean getState(Address target, long timeout) throws Exception {
-        return getState(target, timeout, true);
+    public void getState(Address target, long timeout) throws Exception {
+        getState(target, timeout, true);
     }
 
 
     /**
      * Retrieves state from the target member. See {@link #getState(Address,long)} for details.
      */
-    public boolean getState(Address target, long timeout, boolean useFlushIfPresent) throws Exception {
+    public void getState(Address target, long timeout, boolean useFlushIfPresent) throws Exception {
     	Callable<Boolean> flusher = new Callable<Boolean>() {
 			public Boolean call() throws Exception {
 				return Util.startFlush(JChannel.this);
 			}
 		};
-		return getState(target, timeout, useFlushIfPresent?flusher:null);
+		getState(target, timeout, useFlushIfPresent?flusher:null);
 	}
     
 
-    protected boolean getState(Address target, long timeout, Callable<Boolean> flushInvoker) throws Exception {
+    protected void getState(Address target, long timeout, Callable<Boolean> flushInvoker) throws Exception {
         checkClosedOrNotConnected();
         if(!state_transfer_supported)
             throw new IllegalStateException("fetching state will fail as state transfer is not supported. "
-                                              + "Add one of the STATE_TRANSFER protocols to your protocol configuration");
+                                              + "Add one of the state transfer protocols to your configuration");
 
         if(target == null)
             target=determineCoordinator();
         if(target != null && local_addr != null && target.equals(local_addr)) {
             if(log.isTraceEnabled())
                 log.trace("cannot get state from myself (" + target + "): probably the first member");
-            return false;
+            return;
         }
 
         boolean initiateFlush=flushSupported() && flushInvoker != null;
@@ -606,7 +586,6 @@ public class JChannel extends Channel {
 
         if(result != null && result.hasException())
             throw new StateTransferException("state transfer failed", result.getException());
-        return true;
     }
 
 
@@ -852,8 +831,9 @@ public class JChannel extends Channel {
         checkClosed();
 
         /*make sure we have a valid channel name*/
-        if(cluster_name == null)
+        if(cluster_name == null) {
             if(log.isDebugEnabled()) log.debug("cluster_name is null, assuming unicast channel");
+        }
         else
             this.cluster_name=cluster_name;
 

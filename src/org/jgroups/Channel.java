@@ -362,21 +362,18 @@ public abstract class Channel /* implements Transport */ {
      * State transfer is initiated by invoking getState on this channel, the state requester, and sending a GET_STATE
      * message to a target member - the state provider. The state provider passes a GET_STATE message to the application
      * that is using the the state provider channel which in turn provides an application state to the state requester.
-     * Upon successful installation of a state at the state receiver, this method returns true.
      *
-     * @param target State provider. If null (default), the coordinator is used
+     * @param target State provider. If null the coordinator is used by default
      * @param timeout The number of milliseconds to wait for the operation to complete successfully.
      *                0 waits until the state has been received
      *
      * @see MessageListener#getState(java.io.OutputStream)
      * @see MessageListener#setState(java.io.InputStream)
      *
-     * @return true If the state transfer was successful, false otherwise
-     * @exception IllegalStateException The channel was closed or disconnected, or the flush failed
-     * @exception StateTransferException When there was a problem during the state transfer. The exact subtype of
-     *            the exception, plus the exception message will allow a caller to determine what went wrong, and to possbly retry.
+     * @exception IllegalStateException The channel was closed or disconnected, or the flush (if present) failed
+     * @exception StateTransferException When there was a problem during the state transfer
      */
-    abstract public boolean getState(Address target, long timeout) throws Exception;
+    abstract public void getState(Address target, long timeout) throws Exception;
 
 
 

@@ -29,11 +29,11 @@ public class StateTransferTest extends ChannelTestBase {
         try {
             Address self=ch.getAddress();
             assert self != null;
-            boolean rc=ch.getState(self, 20000);
-            assert !rc : "getState() on self should return false";
+            ch.getState(self, 20000);
+            assert true : "getState() on self should return";
         }
         finally {
-            ch.close();
+            Util.close(ch);
         }
     }
 

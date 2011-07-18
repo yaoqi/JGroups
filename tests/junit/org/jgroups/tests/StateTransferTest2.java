@@ -39,8 +39,7 @@ public class StateTransferTest2 extends ChannelTestBase {
             StateHandler sh1=new StateHandler("Bela", false, false), sh2=new StateHandler(null, false, false);
             c1.setReceiver(sh1);
             c2.setReceiver(sh2);
-            boolean rc=c2.getState(null, 0);
-            assert rc;
+            c2.getState(null, 0);
             Object state=sh2.getReceivedState();
             System.out.println("state = " + state);
             assert state != null && state.equals("Bela");

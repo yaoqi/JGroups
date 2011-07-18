@@ -25,7 +25,6 @@ public class Draw extends ReceiverAdapter implements ActionListener, ChannelList
     String                         groupname="DrawGroupDemo";
     private Channel                channel=null;
     private int                    member_size=1;
-    static final boolean           first=true;
     private JFrame                 mainFrame=null;
     private JPanel                 sub_panel=null;
     private DrawPanel              panel=null;

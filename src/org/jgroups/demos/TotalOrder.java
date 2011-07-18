@@ -189,9 +189,7 @@ public class TotalOrder extends Frame {
         get_state.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 try {
-                    boolean rc=channel.getState(null, 3000);
-                    if(rc == false)
-                        error("State could not be retrieved !");
+                    channel.getState(null, 3000);
                 }
                 catch(Throwable t) {
                     error("exception fetching state: " + t);
