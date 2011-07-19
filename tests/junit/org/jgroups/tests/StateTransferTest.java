@@ -68,7 +68,7 @@ public class StateTransferTest extends ChannelTestBase {
             for(int i=0; i < apps.length; i++)
                 tmp[i]=apps[i].getChannel();
 
-            Util.blockUntilViewsReceived(60000, 1000, tmp);
+            Util.waitUntilAllChannelsHaveSameSize(60000, 1000, tmp);
 
             // Reacquire the semaphore tickets; when we have them all
             // we know the threads are done

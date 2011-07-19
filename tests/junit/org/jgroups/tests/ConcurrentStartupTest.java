@@ -47,7 +47,7 @@ public class ConcurrentStartupTest extends ChannelTestBase {
                 channels[i].start();
                 semaphore.release(1);
                 if(i == 0)
-                    Util.sleep(1500); // sleep after the first node to educe the chances of a merge
+                    Util.sleep(1500); // sleep after the first node to reduce the chances of a merge
             }
 
             // Make sure everyone is in sync
@@ -55,7 +55,7 @@ public class ConcurrentStartupTest extends ChannelTestBase {
             for(int i=0; i < channels.length; i++)
                 tmp[i]=channels[i].getChannel();
 
-            Util.blockUntilViewsReceived(30000, 500, tmp);
+            Util.waitUntilAllChannelsHaveSameSize(30000, 500, tmp);
             System.out.println(">>>> all nodes have the same view <<<<");
 
             // Re-acquire the semaphore tickets; when we have them all we know the threads are done
@@ -169,7 +169,6 @@ public class ConcurrentStartupTest extends ChannelTestBase {
             synchronized(state){
                 state.clear();
                 state.addAll(tmp);
-                log.info(channel.getAddress() + ": state is " + state);
             }
         }
     }

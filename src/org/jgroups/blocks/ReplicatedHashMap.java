@@ -95,8 +95,6 @@ public class ReplicatedHashMap<K extends Serializable, V extends Serializable> e
      */
     private volatile boolean send_message=false;
 
-    protected final Promise<Boolean> state_promise=new Promise<Boolean>();
-
     protected final RequestOptions call_options=new RequestOptions(ResponseMode.GET_NONE, 5000);
 
     protected final Log log=LogFactory.getLog(this.getClass());
@@ -177,19 +175,7 @@ public class ReplicatedHashMap<K extends Serializable, V extends Serializable> e
      */
     public final void start(long state_timeout) throws Exception {
         send_message=channel.getView().size() > 1;
-        state_promise.reset();
         channel.getState(null, state_timeout);
-        if(log.isInfoEnabled())
-            log.info("state was retrieved successfully, waiting for setState()");
-        Boolean result=state_promise.getResult(state_timeout);
-        if(result == null) {
-            if(log.isErrorEnabled())
-                log.error("setState() never got called");
-        }
-        else {
-            if(log.isInfoEnabled())
-                log.info("setState() was called");
-        }
     }
 
     public Address getLocalAddress() {
@@ -559,7 +545,8 @@ public class ReplicatedHashMap<K extends Serializable, V extends Serializable> e
         if(new_copy != null)
             _putAll(new_copy);
 
-        state_promise.setResult(Boolean.TRUE);
+        if(log.isDebugEnabled())
+            log.debug("state received successfully");
     }
 
     /*------------------- Membership Changes ----------------------*/

@@ -35,7 +35,7 @@ public class FlushTest extends ChannelTestBase {
         Channel[] tmp = new Channel[receivers.length];
         for (int i = 0; i < receivers.length; i++)
             tmp[i] = receivers[i].getChannel();
-        Util.blockUntilViewsReceived(60000, 1000, tmp);
+        Util.waitUntilAllChannelsHaveSameSize(60000, 1000, tmp);
 
         // Reacquire the semaphore tickets; when we have them all
         // we know the threads are done
@@ -171,7 +171,7 @@ public class FlushTest extends ChannelTestBase {
             c1.getProtocolStack().findProtocol(FLUSH.class).setLevel("trace");
             c3.getProtocolStack().findProtocol(FLUSH.class).setLevel("trace");
 
-            Util.blockUntilViewsReceived(10000, 500, c1, c3);
+            Util.waitUntilAllChannelsHaveSameSize(10000, 500, c1, c3);
 
             // cluster should not hang and two remaining members should have a correct view
             assertTrue("correct view size", c1.getView().size() == 2);
@@ -213,7 +213,7 @@ public class FlushTest extends ChannelTestBase {
             c2.stopFlush();
 
             System.out.println("waiting for view to contain C1 and C2");
-            Util.blockUntilViewsReceived(10000, 500, c1, c2);
+            Util.waitUntilAllChannelsHaveSameSize(10000, 500, c1, c2);
 
             // cluster should not hang and two remaining members should have a correct view
             System.out.println("C1: view=" + c1.getView() + "\nC2: view=" + c2.getView());
@@ -248,7 +248,7 @@ public class FlushTest extends ChannelTestBase {
             Util.startFlush(c2);
 
             c2.stopFlush();
-            Util.blockUntilViewsReceived(10000, 500, c2);
+            Util.waitUntilAllChannelsHaveSameSize(10000, 500, c2);
 
             // cluster should not hang and one remaining member should have a correct view
             assertTrue("correct view size", c2.getView().size() == 1);
@@ -342,7 +342,7 @@ public class FlushTest extends ChannelTestBase {
             int cnt = 0;
             for (FlushTestReceiver receiver : channels)
                 tmp[cnt++] = receiver.getChannel();
-            Util.blockUntilViewsReceived(30000, 1000, tmp);
+            Util.waitUntilAllChannelsHaveSameSize(30000, 1000, tmp);
 
             // Reacquire the semaphore tickets; when we have them all
             // we know the threads are done
