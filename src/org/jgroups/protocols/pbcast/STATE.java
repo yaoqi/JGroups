@@ -13,7 +13,7 @@ import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * STREAMING_STATE_TRANSFER streams the state (written to an OutputStream) to the state requester in chunks (defined by
+ * STATE streams the state (written to an OutputStream) to the state requester in chunks (defined by
  * chunk_size). Every chunk is sent via a unicast message. The state requester writes the chunks into a blocking
  * input stream ({@link BlockingInputStream}) from which the {@link MessageListener#setState(java.io.InputStream)}
  * reads it. The size of the BlockingInputStream is buffer_size bytes.
@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @since 2.4
  */
 @MBean(description="Streaming state transfer protocol")
-public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
+public class STATE extends StreamingStateTransfer {
 
 
     /*
@@ -45,7 +45,7 @@ public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
 
 
 
-    public STREAMING_STATE_TRANSFER() {
+    public STATE() {
         super();
     }
 
@@ -101,7 +101,7 @@ public class STREAMING_STATE_TRANSFER extends StreamingStateTransfer {
             public void run() {
                 setStateInApplication(provider, input_stream, hdr.getDigest());
             }
-        }, "STREAMING_STATE_TRANSFER state reader");
+        }, "STATE state reader");
         t.start();
     }
 

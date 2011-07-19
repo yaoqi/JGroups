@@ -24,9 +24,9 @@ import java.util.concurrent.atomic.AtomicLong;
  * Then the member returns both S and D to the requester. The requester first
  * sets its digest to D and then returns the state to the application.
  * @author Bela Ban
- * @see STREAMING_STATE_TRANSFER
- * @see STREAMING_STATE_TRANSFER_SOCKET
- * @deprecated Use STREAMING_STATE_TRANSFER or STREAMING_STATE_TRANSFER_SOCKET instead
+ * @see STATE
+ * @see STATE_SOCK
+ * @deprecated Use STATE or STATE_SOCK instead
  */
 @MBean(description="State transfer protocol based on byte array transfer")
 public class STATE_TRANSFER extends Protocol {

@@ -33,14 +33,14 @@ import java.util.concurrent.locks.ReentrantLock;
  * transfer application state that is very large (>1Gb) without a likelihood of the
  * such transfer resulting in OutOfMemoryException.
  * <p/>
- * Note that prior to 3.0, there was only 1 streaming protocol: STREAMING_STATE_TRANSFER. In 3.0 the functionality
- * was split between STREAMING_STATE_TRANSFER and STREAMING_STATE_TRANSFER_SOCKET, and common functionality moved up
+ * Note that prior to 3.0, there was only 1 streaming protocol: STATE. In 3.0 the functionality
+ * was split between STATE and STATE_SOCK, and common functionality moved up
  * into StreamingStateTransfer.
  * @author Bela Ban
  * @author Vladimir Blagojevic
  * @see STATE_TRANSFER
- * @see STREAMING_STATE_TRANSFER
- * @see STREAMING_STATE_TRANSFER_SOCKET
+ * @see STATE
+ * @see STATE_SOCK
  * @since 3.0
  */
 @MBean(description="Streaming state transfer protocol base class")
@@ -465,7 +465,7 @@ public abstract class StreamingStateTransfer extends Protocol {
         Message state_rsp=new Message(requester);
         Digest digest=isDigestNeeded()? (Digest)down_prot.down(Event.GET_DIGEST_EVT) : null;
         StateHeader hdr=new StateHeader(StateHeader.STATE_RSP, null, digest);
-        // gives subclasses a chance to modify this header, e.g. STREAMING_STATE_TRANSFER_SOCKET adds the server socket's address
+        // gives subclasses a chance to modify this header, e.g. STATE_SOCK adds the server socket's address
         modifyStateResponseHeader(hdr);
         state_rsp.putHeader(this.id, hdr);
         if(log.isDebugEnabled())

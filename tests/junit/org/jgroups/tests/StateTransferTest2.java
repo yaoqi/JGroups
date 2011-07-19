@@ -21,13 +21,13 @@ public class StateTransferTest2 extends ChannelTestBase {
 
     @DataProvider(name="createChannels")
     protected Iterator<JChannel[]> createChannels() {
-        return new MyIterator(new Class[]{STATE_TRANSFER.class, STREAMING_STATE_TRANSFER.class,
-          STREAMING_STATE_TRANSFER_SOCKET.class});
+        return new MyIterator(new Class[]{STATE_TRANSFER.class, STATE.class,
+          STATE_SOCK.class});
     }
 
    /* @DataProvider(name="createChannels")
     protected Iterator<JChannel[]> createChannels() {
-        return new MyIterator(new Class[]{STREAMING_STATE_TRANSFER.class});
+        return new MyIterator(new Class[]{STATE.class});
     }*/
 
 

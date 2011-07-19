@@ -21,7 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 
 /**
- * <code>STREAMING_STATE_TRANSFER_SOCKET</code> has the state provider create a server socket to which the state
+ * <code>STATE_SOCK</code> has the state provider create a server socket to which the state
  * requester connects and from which the latter reads the state.
  * <p/>
  * When implementing {@link org.jgroups.MessageListener#getState(java.io.OutputStream)}, the state should be written in
@@ -38,7 +38,7 @@ import java.util.concurrent.RejectedExecutionException;
  * @since 3.0
  */
 @MBean(description="State trasnfer protocol based on streaming state transfer")
-public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
+public class STATE_SOCK extends StreamingStateTransfer {
 
     /*
      * ----------------------------------------------Properties -----------------------------------
@@ -68,7 +68,7 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
     protected volatile StateProviderAcceptor spawner;
 
 
-    public STREAMING_STATE_TRANSFER_SOCKET() {
+    public STATE_SOCK() {
         super();
     }
 
@@ -87,9 +87,9 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
     protected StateProviderAcceptor createAcceptor() {
         StateProviderAcceptor retval=new StateProviderAcceptor(thread_pool,
                                                                Util.createServerSocket(getSocketFactory(),
-                                                                                       Global.STREAMING_STATE_TRANSFER_SERVER_SOCK,
+                                                                                       Global.STATE_SERVER_SOCK,
                                                                                        bind_addr, bind_port));
-        Thread t=getThreadFactory().newThread(retval, "STREAMING_STATE_TRANSFER server socket acceptor");
+        Thread t=getThreadFactory().newThread(retval, "STATE server socket acceptor");
         t.start();
         return retval;
     }
@@ -168,7 +168,7 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             super();
             this.pool=pool;
             this.serverSocket=stateServingSocket;
-            this.address=new IpAddress(STREAMING_STATE_TRANSFER_SOCKET.this.bind_addr, serverSocket.getLocalPort());
+            this.address=new IpAddress(STATE_SOCK.this.bind_addr, serverSocket.getLocalPort());
         }
 
         public IpAddress getServerSocketAddress() {return address;}
