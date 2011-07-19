@@ -18,6 +18,7 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * <code>STREAMING_STATE_TRANSFER_SOCKET</code> has the state provider create a server socket to which the state
@@ -179,12 +180,16 @@ public class STREAMING_STATE_TRANSFER_SOCKET extends StreamingStateTransfer {
             while(running) {
                 try {
                     final Socket socket=serverSocket.accept();
-                    pool.execute(new Runnable() {
-                        public void run() {
-                            process(socket);
-                        }
-                    });
-
+                    try {
+                        pool.execute(new Runnable() {
+                            public void run() {
+                                process(socket);
+                            }
+                        });
+                    }
+                    catch(RejectedExecutionException rejected) {
+                        Util.close(socket);
+                    }
                 }
                 catch(Throwable e) {
                     if(serverSocket.isClosed())
