@@ -34,7 +34,7 @@ import org.jgroups.annotations.Property;
 import org.jgroups.blocks.locking.AwaitInfo;
 import org.jgroups.blocks.locking.LockInfo;
 import org.jgroups.blocks.locking.LockNotification;
-import org.jgroups.blocks.locking.Owner;
+import org.jgroups.util.Owner;
 import org.jgroups.stack.Protocol;
 import org.jgroups.util.Streamable;
 import org.jgroups.util.Util;
@@ -1232,7 +1232,7 @@ abstract public class Locking extends Protocol {
     protected static class Request implements Streamable {
         protected Type    type;
         protected String  lock_name;
-        protected Owner   owner;
+        protected Owner owner;
         protected long    timeout=0;
         protected boolean is_trylock;
 

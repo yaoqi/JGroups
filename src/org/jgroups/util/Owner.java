@@ -1,9 +1,7 @@
-package org.jgroups.blocks.locking;
+package org.jgroups.util;
 
 
 import org.jgroups.Address;
-import org.jgroups.util.Streamable;
-import org.jgroups.util.Util;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -12,7 +10,7 @@ import java.io.IOException;
 
 
 /**
- * Represents the owner of a lock. Wraps address and thread ID
+ * Represents an 'owner', which is an address and thread ID
  * @author Bela Ban
  */
 public class Owner implements Streamable {
@@ -37,12 +35,12 @@ public class Owner implements Streamable {
 
     public void writeTo(DataOutput out) throws IOException {
         Util.writeAddress(address, out);
-        out.writeLong(thread_id);
+        Util.writeLong(thread_id, out);
     }
 
     public void readFrom(DataInput in) throws IOException, IllegalAccessException, InstantiationException {
         address=Util.readAddress(in);
-        thread_id=in.readLong();
+        thread_id=Util.readLong(in);
     }
 
     public boolean equals(Object obj) {
